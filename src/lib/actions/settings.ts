@@ -5,6 +5,7 @@ import { AccessRepository } from "../repositories/accessRepository";
 import { getSession } from "../session";
 import { UserRepository } from "../repositories/userRepository";
 import { BranchRepository } from "../repositories/branchRepository";
+import { CompanyRepository } from "../repositories/companyRepository";
 
 export async function getRoles() {
   const session = await getSession();
@@ -102,4 +103,11 @@ export async function editUser(id: number, data: UserFormValues) {
 
   const userRepository = new UserRepository(session.company_id);
   return await userRepository.editUser(id, data, session.user_id);
+}
+
+export async function getAllCompanies() {
+  const session = await getSession();
+
+  const userRepository = new CompanyRepository(session.user_id);
+  return await userRepository.getAllCompanies();
 }

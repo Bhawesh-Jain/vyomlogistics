@@ -1,6 +1,7 @@
 import { QueryBuilder, executeQuery } from "../helpers/db-helper";
 import { RepositoryBase } from "../helpers/repository-base";
 import bcrypt from 'bcryptjs';
+import { BranchRepository } from "./branchRepository";
 
 export interface User {
   id: number;
@@ -203,10 +204,10 @@ export class UserRepository extends RepositoryBase {
       if (result > 0) {
 
         // for (let i = 0; i < branches.length; i++) {
-        //   const element = branches[i];
+        // const element = branches[i];
 
-        //   const branchRepository = new BranchRepository(this.companyId);
-        //   await branchRepository.addUserBranch(String(result), element);
+        const branchRepository = new BranchRepository(this.companyId);
+        await branchRepository.addUserBranch(String(result), '1');
         // }
 
         await executeQuery<any[]>(`
