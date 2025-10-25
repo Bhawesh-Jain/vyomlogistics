@@ -6,6 +6,7 @@ import { getSession } from "../session";
 import { UserRepository } from "../repositories/userRepository";
 import { BranchRepository } from "../repositories/branchRepository";
 import { CompanyRepository } from "../repositories/companyRepository";
+import { CompanyFormValues } from "@/app/dashboard/settings/company-management/blocks/AddCompany";
 
 export async function getRoles() {
   const session = await getSession();
@@ -110,4 +111,32 @@ export async function getAllCompanies() {
 
   const userRepository = new CompanyRepository(session.user_id);
   return await userRepository.getAllCompanies();
+}
+
+export async function getCompanyById(id: number) {
+  const session = await getSession();
+
+  const userRepository = new CompanyRepository(session.user_id);
+  return await userRepository.getCompanyById(id);
+}
+
+export async function addCompany(data: CompanyFormValues) {
+  const session = await getSession();
+
+  const userRepository = new CompanyRepository(session.user_id);
+  return await userRepository.addCompany(data, session.user_id);
+}
+
+export async function updatedCompany(id: number, data: CompanyFormValues) {
+  const session = await getSession();
+
+  const userRepository = new CompanyRepository(session.user_id);
+  return await userRepository.updatedCompany(id, data, session.user_id);
+}
+
+export async function deleteCompany(id: number) {
+  const session = await getSession();
+
+  const userRepository = new CompanyRepository(session.user_id);
+  return await userRepository.deleteCompany(id, session.user_id);
 }

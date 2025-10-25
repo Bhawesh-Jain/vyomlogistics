@@ -89,6 +89,7 @@ export function DefaultFormTextArea({
   label,
   name,
   placeholder,
+  className = '',
   form,
   rows = 3
 }: {
@@ -96,6 +97,7 @@ export function DefaultFormTextArea({
   name: string,
   placeholder: string,
   rows?: number,
+  className?: string,
   form: any
 }) {
   return (
@@ -106,7 +108,7 @@ export function DefaultFormTextArea({
         <FormItem>
           <FormLabel>{label}</FormLabel>
           <FormControl>
-            <Textarea placeholder={placeholder} {...field} rows={rows} />
+            <Textarea placeholder={placeholder} {...field} rows={rows} className={className} />
           </FormControl>
           <FormMessage />
         </FormItem>

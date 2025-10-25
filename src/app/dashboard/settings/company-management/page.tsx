@@ -5,16 +5,18 @@ import { Column, DataTable } from "@/components/data-table/data-table";
 import { Container } from "@/components/ui/container";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGlobalDialog } from "@/providers/DialogProvider";
-import { Badge } from "@/components/ui/badge";
-import formatDate from "@/lib/utils/date";
-import { MoneyHelper } from "@/lib/helpers/money-helper";
-import { getAllCompanies } from "@/lib/actions/settings";
+import { deleteCompany, getAllCompanies } from "@/lib/actions/settings";
 import { Company } from "@/lib/repositories/companyRepository";
+import { Button, ButtonTooltip } from "@/components/ui/button";
+import { Edit2, Trash } from "lucide-react";
+import AddCompany from "./blocks/AddCompany";
 
 export default function CompanyMaster() {
   const [items, setItems] = useState<Company[]>([])
   const [reload, setReload] = useState(true);
+  const [selected, setSelected] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState(false)
   const { showError } = useGlobalDialog();
 
   const itemsRef = useRef<Company[]>([]);
@@ -23,7 +25,7 @@ export default function CompanyMaster() {
     (async () => {
       setReload(false);
       setLoading(true);
-
+      setItems([]);
       const data = await getAllCompanies();
 
       if (data.success) {
@@ -39,6 +41,24 @@ export default function CompanyMaster() {
   useEffect(() => {
     itemsRef.current = items;
   }, [items]);
+
+  const deleteCompanyFunc = async (companyId: number) => {
+    confirm(`Are you sure you want to delete this company? This action cannot be undone. ${companyId}`);
+
+    try {
+      const result = await deleteCompany(companyId);
+      setLoading(true);
+      if (!result.success) {
+        showError("Request Failed!", result.error);
+      } else {
+        setLoading(false);
+        setReload(true);
+      }
+    } catch (error: any) {
+      setLoading(false);
+      showError("Request Failed!", error?.message || error.toString());
+    }
+  }
 
   const columns: Column<Company>[] = [
     {
@@ -64,9 +84,12 @@ export default function CompanyMaster() {
       align: 'right',
       cell: (row) => (
         <div className="flex gap-2 justify-end">
-          {/* <Button variant="ghost" size="sm" onClick={() => deleteTrainer(row.id)}>
+          <ButtonTooltip title='Edit Company' variant="ghost" size="sm" onClick={() => { setForm(true); setSelected(row) }}>
+            <Edit2 className="h-4 w-4" />
+          </ButtonTooltip>
+          <ButtonTooltip title='Delete Company' variant="ghost" size="sm" onClick={() => deleteCompanyFunc(row.company_id)}>
             <Trash className="h-4 w-4 text-destructive" />
-          </Button> */}
+          </ButtonTooltip>
         </div>
       ),
     },
@@ -81,16 +104,27 @@ export default function CompanyMaster() {
         </CardHeader>
 
         <CardHeader>
-          {/* <AddTrainer setReload={setReload} item={null} /> */}
+          {form
+            ? <Button variant={'outline'} onClick={() => { setForm(false); setSelected(null) }}>
+              Cancel
+            </Button>
+            : <ButtonTooltip title='Add a new Company' onClick={() => setForm(true)}>
+              Add Company
+            </ButtonTooltip>}
         </CardHeader>
       </div>
       <CardContent>
-        <DataTable
-          data={items}
-          columns={columns}
-          loading={loading}
-          setReload={setReload}
-        />
+
+        {form
+          ? <AddCompany setForm={() => setForm(false)} setReload={setReload} companyId={selected?.company_id} />
+          : <DataTable
+            data={items}
+            columns={columns}
+            loading={loading}
+            setReload={setReload}
+          />
+        }
+
       </CardContent>
     </Container>
   )
