@@ -47,7 +47,8 @@ export class AccessRepository extends RepositoryBase {
   async getAllPermissions() {
     try {
       const result = await this.moduleBuilder
-        .where('? in (company_id)', this.companyId)
+        .orWhere('? in (company_id)', this.companyId)
+        .orWhere('company_id is NULL')
         .where('status = ?', 1)
         .select(['id', 'parent_id', 'url', 'title', 'menu_order'])
 
