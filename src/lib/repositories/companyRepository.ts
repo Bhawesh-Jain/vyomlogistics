@@ -18,6 +18,7 @@ export class CompanyRepository extends RepositoryBase {
   async getAllCompanies() {
     try {
       const data = await new QueryBuilder('company_master')
+        .where('is_active = 1')
         .select(['company_id', 'company_name', 'abbr', 'currency_symbol', 'currency'])
 
       if (data.length == 0) {
