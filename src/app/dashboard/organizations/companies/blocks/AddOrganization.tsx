@@ -8,14 +8,17 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import Loading from "@/app/dashboard/loading";
-import { DefaultFormTextField, DefaultFormTextArea, DefaultFormDatePicker } from "@/components/ui/default-form-field";
+import { DefaultFormTextField, DefaultFormTextArea, DefaultFormDatePicker, DefaultFormSelect } from "@/components/ui/default-form-field";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building2, MapPin, Phone, User, Calendar } from "lucide-react";
 import { addOrganization, updatedOrganization, getOrganizationById } from "@/lib/actions/organizations";
+import { getAllCompanies } from "@/lib/actions/settings";
+import { Company } from "@/lib/repositories/companyRepository";
 
 // Zod schema for organizations table
 const formSchema = z.object({
   org_name: z.string().min(1, 'Enter organization name'),
+  company_id: z.string().min(1, 'Select a company'),
   contact_person: z.string().min(1, 'Enter contact person name'),
   contact_number: z.string().min(10, 'Enter valid contact number').max(15, 'Contact number too long'),
   location: z.string().min(1, 'Enter location'),
@@ -38,6 +41,7 @@ export default function AddOrganization({
 
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(false);
+  const [companyData, setCompanyData] = useState<Company[]>([]);
   const [organizationData, setOrganizationData] = useState<any>(null);
   const { toast } = useToast();
 
@@ -46,6 +50,7 @@ export default function AddOrganization({
     defaultValues: {
       org_name: '',
       contact_person: '',
+      company_id: '',
       contact_number: '',
       location: '',
       pincode: '',
@@ -54,21 +59,34 @@ export default function AddOrganization({
     },
   });
 
-  // Fetch organization data if organizationId is provided
   useEffect(() => {
+    (async () => {
+      const companies = await getAllCompanies();
+
+      if (companies.success) {
+        const formattedData = companies.result.map((item: Company) => ({
+          label: item.company_name,
+          value: item.company_id.toString(),
+        }));
+
+        setCompanyData(formattedData);
+      }
+    })();
     if (organizationId) {
       (async () => {
         setDataLoading(true);
         try {
           const result = await getOrganizationById(organizationId);
-          
+
+
           if (result.success) {
             const organization = result.result;
             setOrganizationData(organization);
-            
+
             // Reset form with fetched data
             form.reset({
               org_name: organization.org_name ?? '',
+              company_id: organization.company_id?.toString() ?? '',
               contact_person: organization.contact_person ?? '',
               contact_number: organization.contact_number ?? '',
               location: organization.location ?? '',
@@ -99,7 +117,7 @@ export default function AddOrganization({
   async function onSubmit(data: OrganizationFormValues) {
     setLoading(true);
     try {
-      const result = organizationId 
+      const result = organizationId
         ? await updatedOrganization(organizationId, data)
         : await addOrganization(data);
 
@@ -146,11 +164,20 @@ export default function AddOrganization({
               </CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
-                  <DefaultFormTextField 
-                    form={form} 
-                    name="org_name" 
-                    label="Organization Name" 
-                    placeholder="Enter organization name" 
+                  <DefaultFormTextField
+                    form={form}
+                    name="org_name"
+                    label="Organization Name"
+                    placeholder="Enter organization name"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <DefaultFormSelect
+                    form={form}
+                    name="company_id"
+                    label="Company"
+                    placeholder="Select a company"
+                    options={companyData}
                   />
                 </div>
               </CardContent>
@@ -164,17 +191,17 @@ export default function AddOrganization({
                 </CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <DefaultFormTextField 
-                  form={form} 
-                  name="contact_person" 
-                  label="Contact Person" 
-                  placeholder="Enter contact person name" 
+                <DefaultFormTextField
+                  form={form}
+                  name="contact_person"
+                  label="Contact Person"
+                  placeholder="Enter contact person name"
                 />
-                <DefaultFormTextField 
-                  form={form} 
-                  name="contact_number" 
-                  label="Contact Number" 
-                  placeholder="Enter contact number" 
+                <DefaultFormTextField
+                  form={form}
+                  name="contact_number"
+                  label="Contact Number"
+                  placeholder="Enter contact number"
                 />
               </CardContent>
             </Card>
@@ -187,18 +214,18 @@ export default function AddOrganization({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <DefaultFormTextArea 
-                  form={form} 
-                  name="location" 
-                  label="Location" 
-                  placeholder="Enter complete location/address" 
-                  className="resize-none" 
+                <DefaultFormTextArea
+                  form={form}
+                  name="location"
+                  label="Location"
+                  placeholder="Enter complete location/address"
+                  className="resize-none"
                 />
-                <DefaultFormTextField 
-                  form={form} 
-                  name="pincode" 
-                  label="Pincode" 
-                  placeholder="Enter pincode" 
+                <DefaultFormTextField
+                  form={form}
+                  name="pincode"
+                  label="Pincode"
+                  placeholder="Enter pincode"
                 />
               </CardContent>
             </Card>
@@ -211,19 +238,19 @@ export default function AddOrganization({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <DefaultFormDatePicker 
-                  form={form} 
-                  name="signed_on" 
-                  label="Signing Date" 
+                <DefaultFormDatePicker
+                  form={form}
+                  name="signed_on"
+                  label="Signing Date"
                 />
               </CardContent>
             </Card>
 
             {/* Submit Button */}
             <div className="flex justify-end gap-4">
-              <Button 
-                type="button" 
-                variant="outline" 
+              <Button
+                type="button"
+                variant="outline"
                 onClick={() => setForm(false)}
               >
                 Cancel
