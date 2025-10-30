@@ -76,7 +76,6 @@ export class UserAuthRepository extends RepositoryBase {
         FROM users iu
         LEFT JOIN company_master cm
           ON cm.company_id = iu.company_id
-          AND cm.is_active = 1
         WHERE (iu.id = ? 
           OR iu.email = ? 
           OR iu.phone = ?)
