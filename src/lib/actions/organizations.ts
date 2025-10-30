@@ -4,6 +4,7 @@ import { OrganizationFormValues } from "@/app/dashboard/organizations/companies/
 import { OrganizationRepository } from "../repositories/organizationRepository";
 import { getSession } from "../session";
 import { LicenseFormValues } from "@/app/dashboard/organizations/licenses/blocks/AddItem";
+import { AgreementFormValues } from "@/app/dashboard/organizations/agreements/blocks/AddItem";
 
 export async function getAllOrganizations() {
   const session = await getSession();
@@ -73,4 +74,39 @@ export async function deleteLicense(id: number) {
 
   const userRepository = new OrganizationRepository(session.user_id);
   return await userRepository.deleteLicense(id, session.user_id);
+}
+
+export async function getAllAgreements() {
+  const session = await getSession();
+
+  const userRepository = new OrganizationRepository(session.user_id);
+  return await userRepository.getAllAgreements();
+}
+
+export async function getAgreementById(id: number) {
+  const session = await getSession();
+
+  const userRepository = new OrganizationRepository(session.user_id);
+  return await userRepository.getAgreementById(id);
+}
+
+export async function addAgreement(data: AgreementFormValues) {
+  const session = await getSession();
+
+  const userRepository = new OrganizationRepository(session.user_id);
+  return await userRepository.addAgreement(data, session.user_id);
+}
+
+export async function updateAgreement(id: number, data: AgreementFormValues) {
+  const session = await getSession();
+
+  const userRepository = new OrganizationRepository(session.user_id);
+  return await userRepository.updatedAgreement(id, data, session.user_id);
+}
+
+export async function deleteAgreement(id: number) {
+  const session = await getSession();
+
+  const userRepository = new OrganizationRepository(session.user_id);
+  return await userRepository.deleteAgreement(id, session.user_id);
 }

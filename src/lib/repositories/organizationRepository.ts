@@ -2,6 +2,7 @@ import { OrganizationFormValues } from "@/app/dashboard/organizations/companies/
 import { executeQuery, QueryBuilder } from "../helpers/db-helper";
 import { RepositoryBase } from "../helpers/repository-base"
 import { LicenseFormValues } from "@/app/dashboard/organizations/licenses/blocks/AddItem";
+import { AgreementFormValues } from "@/app/dashboard/organizations/agreements/blocks/AddItem";
 
 export interface Organization {
   org_id: number;
@@ -10,7 +11,7 @@ export interface Organization {
   contact_number: string;
   location: string;
   pincode: string;
-  
+
   updated_by: string;
 
   status: number;
@@ -27,7 +28,24 @@ export interface License {
   start_date: string;
   valid_upto: string;
   duration: number;
-  
+
+  org_id: number;
+  org_name: string;
+
+  updated_by: string;
+
+  status: number;
+
+  created_on: string;
+  updated_on: string;
+}
+
+export interface Agreement {
+  agreement_id: number;
+  start_date: string;
+  valid_upto: string;
+  duration: number;
+
   org_id: number;
   org_name: string;
 
@@ -78,7 +96,7 @@ export class OrganizationRepository extends RepositoryBase {
       `;
 
       const data = await executeQuery<Organization[]>(sql, [id]);
-      
+
       if (data.length == 0) {
         return this.failure('No Organization Found!')
       }
@@ -141,7 +159,7 @@ export class OrganizationRepository extends RepositoryBase {
       const result = await new QueryBuilder('organizations')
         .where('org_id = ?', organizationId)
         .update({
-          is_active: 0,
+          status: 0,
           updated_by: userId
         })
 
@@ -192,7 +210,7 @@ export class OrganizationRepository extends RepositoryBase {
       `;
 
       const data = await executeQuery<License[]>(sql, [id]);
-      
+
       if (data.length == 0) {
         return this.failure('No License Found!')
       }
@@ -214,8 +232,8 @@ export class OrganizationRepository extends RepositoryBase {
           updated_by: userId
         })
 
-        console.log(data);
-        
+      console.log(data);
+
 
       if (result == 0) {
         return this.failure('Request Failed!')
@@ -258,7 +276,7 @@ export class OrganizationRepository extends RepositoryBase {
       const result = await new QueryBuilder('organization_licenses')
         .where('license_id = ?', licenseId)
         .update({
-          is_active: 0,
+          status: 0,
           updated_by: userId
         })
 
@@ -272,5 +290,118 @@ export class OrganizationRepository extends RepositoryBase {
     }
   }
 
+  async getAllAgreements() {
+    try {
+      let sql = `
+        SELECT oa.*,
+          o.org_name,
+          u.name AS updated_by 
+        FROM organization_agreements oa
+        LEFT JOIN organizations o ON oa.org_id = o.org_id
+        LEFT JOIN users u ON oa.updated_by = u.id
+      `;
+
+      const data = await executeQuery(sql) as Agreement[];
+
+      if (data.length == 0) {
+        return this.failure('No Agreements Found!')
+      }
+
+      return this.success(data);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async getAgreementById(id: number) {
+    try {
+      let sql = `
+        SELECT oa.*,
+          o.org_name,
+          u.name AS updated_by 
+        FROM organization_agreements oa
+        LEFT JOIN organizations o ON oa.org_id = o.org_id
+        LEFT JOIN users u ON oa.updated_by = u.id
+        WHERE oa.agreement_id = ?
+        LIMIT 1
+      `;
+
+      const data = await executeQuery<Agreement[]>(sql, [id]);
+
+      if (data.length == 0) {
+        return this.failure('No Agreement Found!')
+      }
+
+      return this.success(data[0]);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async addAgreement(
+    data: AgreementFormValues,
+    userId: string
+  ) {
+    try {
+      const result = await new QueryBuilder('organization_agreements')
+        .insert({
+          ...data,
+          updated_by: userId
+        });
+
+      if (result == 0) {
+        return this.failure('Request Failed!')
+      }
+
+      return this.success('Agreement Added Successfully');
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async updatedAgreement(
+    agreementId: number,
+    data: AgreementFormValues,
+    userId: string
+  ) {
+    try {
+      const result = await new QueryBuilder('organization_agreements')
+        .where('agreement_id = ?', agreementId)
+        .update({
+          ...data,
+          updated_by: userId
+        })
+
+      if (result == 0) {
+        return this.failure('Request Failed!')
+      }
+
+      return this.success('Agreement Updated Successfully');
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async deleteAgreement(
+    agreementId: number,
+    userId: string
+  ) {
+    try {
+      const result = await new QueryBuilder('organization_agreements')
+        .where('agreement_id = ?', agreementId)
+        .update({
+          status: 0,
+          updated_by: userId
+        });
+
+      if (result == 0) {
+        return this.failure('Request Failed!')
+      }
+
+      return this.success('Agreement Deleted Successfully');
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
 }
 
