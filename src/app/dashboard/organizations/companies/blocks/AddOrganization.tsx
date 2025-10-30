@@ -8,118 +8,85 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import Loading from "@/app/dashboard/loading";
-import { DefaultFormTextField, DefaultFormTextArea } from "@/components/ui/default-form-field";
+import { DefaultFormTextField, DefaultFormTextArea, DefaultFormDatePicker } from "@/components/ui/default-form-field";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Container } from "@/components/ui/container";
-import { Building2, MapPin, Phone, Globe, FileText } from "lucide-react";
-import { zodPatterns } from "@/lib/utils/zod-patterns";
-import { addCompany, updatedCompany, getCompanyById } from "@/lib/actions/settings";
-import { Company } from "@/lib/repositories/companyRepository";
+import { Building2, MapPin, Phone, User, Calendar } from "lucide-react";
+import { addOrganization, updatedOrganization, getOrganizationById } from "@/lib/actions/organizations";
 
-// Zod schema for company_master table
+// Zod schema for organizations table
 const formSchema = z.object({
-  company_name: z.string().min(1, 'Enter company name'),
-  abbr: z.string().min(1, 'Enter abbreviation').max(10, 'Abbreviation must be 10 characters or less'),
-  currency: z.string().min(1, 'Enter currency'),
-  currency_symbol: z.string().min(1, 'Enter currency symbol').max(1, 'Currency symbol must be 1 character'),
-  phone: z.string().min(10, 'Enter valid phone number').max(15, 'Phone number too long'),
-  email: z.string().email('Enter valid email address'),
-  web_address: z.string().url('Enter valid URL').or(z.literal('')),
-  logo_url: z.string().optional(),
-  address: z.string().min(1, 'Enter address'),
-  city: z.string().min(1, 'Enter city'),
-  state: z.string().min(1, 'Enter state'),
+  org_name: z.string().min(1, 'Enter organization name'),
+  contact_person: z.string().min(1, 'Enter contact person name'),
+  contact_number: z.string().min(10, 'Enter valid contact number').max(15, 'Contact number too long'),
+  location: z.string().min(1, 'Enter location'),
   pincode: z.string().min(1, 'Enter pincode').max(8, 'Pincode must be 8 characters or less'),
-  country: z.string().min(1, 'Enter country'),
-  corporate_address: z.string().min(1, 'Enter corporate address'),
-  corporate_phone: z.string().min(10, 'Enter valid corporate phone').max(15, 'Phone number too long'),
-  company_description: z.string().optional(),
-  is_active: z.enum(['1', '0']).default('1')
+  signed_on: z.date(),
+  status: z.enum(['1', '0']).default('1')
 });
 
-export type CompanyFormValues = z.infer<typeof formSchema>;
+export type OrganizationFormValues = z.infer<typeof formSchema>;
 
-export default function AddCompany({
+export default function AddOrganization({
   setForm,
   setReload,
-  companyId
+  organizationId
 }: {
   setForm: (form: boolean) => void,
   setReload: (reload: boolean) => void,
-  companyId?: number | null
+  organizationId?: number | null
 }) {
 
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(false);
-  const [companyData, setCompanyData] = useState<any>(null);
+  const [organizationData, setOrganizationData] = useState<any>(null);
   const { toast } = useToast();
 
-  const form = useForm<CompanyFormValues>({
+  const form = useForm<OrganizationFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      company_name: '',
-      abbr: '',
-      currency: 'INR',
-      currency_symbol: '₹',
-      phone: '',
-      email: '',
-      web_address: '',
-      logo_url: '',
-      address: '',
-      city: '',
-      state: '',
+      org_name: '',
+      contact_person: '',
+      contact_number: '',
+      location: '',
       pincode: '',
-      country: 'India',
-      corporate_address: '',
-      corporate_phone: '',
-      company_description: '',
-      is_active: '1'
+      signed_on: new Date(),
+      status: '1'
     },
   });
 
-  // Fetch company data if companyId is provided
+  // Fetch organization data if organizationId is provided
   useEffect(() => {
-    if (companyId) {
+    if (organizationId) {
       (async () => {
         setDataLoading(true);
         try {
-          const result = await getCompanyById(companyId);
+          const result = await getOrganizationById(organizationId);
           
-          if (result.success && result.result.length > 0) {
-            const company = result.result[0];
-            setCompanyData(company);
+          if (result.success) {
+            const organization = result.result;
+            setOrganizationData(organization);
             
             // Reset form with fetched data
             form.reset({
-              company_name: company.company_name ?? '',
-              abbr: company.abbr ?? '',
-              currency: company.currency ?? 'INR',
-              currency_symbol: company.currency_symbol ?? '₹',
-              phone: company.phone ?? '',
-              email: company.email ?? '',
-              web_address: company.web_address ?? '',
-              logo_url: company.logo_url ?? '',
-              address: company.address ?? '',
-              city: company.city ?? '',
-              state: company.state ?? '',
-              pincode: company.pincode ?? '',
-              country: company.country ?? 'India',
-              corporate_address: company.corporate_address ?? '',
-              corporate_phone: company.corporate_phone ?? '',
-              company_description: company.company_description ?? '',
-              is_active: company.is_active?.toString() ?? '1'
+              org_name: organization.org_name ?? '',
+              contact_person: organization.contact_person ?? '',
+              contact_number: organization.contact_number ?? '',
+              location: organization.location ?? '',
+              pincode: organization.pincode ?? '',
+              signed_on: organization.signed_on ? new Date(organization.signed_on) : new Date(),
+              status: organization.status?.toString() ?? '1'
             });
           } else {
             toast({
               title: "Error",
-              description: result.error || "Company not found",
+              description: result.error || "Organization not found",
               variant: "destructive"
             });
           }
         } catch (error: any) {
           toast({
             title: "Error",
-            description: error?.message || "Failed to fetch company data",
+            description: error?.message || "Failed to fetch organization data",
             variant: "destructive"
           });
         } finally {
@@ -127,19 +94,19 @@ export default function AddCompany({
         }
       })();
     }
-  }, [companyId]);
+  }, [organizationId]);
 
-  async function onSubmit(data: CompanyFormValues) {
+  async function onSubmit(data: OrganizationFormValues) {
     setLoading(true);
     try {
-      const result = companyId 
-        ? await updatedCompany(companyId, data)
-        : await addCompany(data);
+      const result = organizationId 
+        ? await updatedOrganization(organizationId, data)
+        : await addOrganization(data);
 
       if (result.success) {
         toast({
           title: "Request Successful",
-          description: companyId ? "Company updated successfully!" : "Company added successfully!",
+          description: organizationId ? "Organization updated successfully!" : "Organization added successfully!",
         });
         form.reset();
         setForm(false);
@@ -170,39 +137,22 @@ export default function AddCompany({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
-            {/* Company Information */}
+            {/* Organization Information */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5" /> Company Information
+                  <Building2 className="h-5 w-5" /> Organization Information
                 </CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                
-                <DefaultFormTextField 
-                  form={form} 
-                  name="company_name" 
-                  label="Company Name" 
-                  placeholder="Enter company name" 
-                />
-                <DefaultFormTextField 
-                  form={form} 
-                  name="abbr" 
-                  label="Abbreviation" 
-                  placeholder="e.g., TPCL" 
-                />
-                <DefaultFormTextField 
-                  form={form} 
-                  name="currency" 
-                  label="Currency" 
-                  placeholder="e.g., INR" 
-                />
-                <DefaultFormTextField 
-                  form={form} 
-                  name="currency_symbol" 
-                  label="Currency Symbol" 
-                  placeholder="e.g., ₹" 
-                />
+                <div className="md:col-span-2">
+                  <DefaultFormTextField 
+                    form={form} 
+                    name="org_name" 
+                    label="Organization Name" 
+                    placeholder="Enter organization name" 
+                  />
+                </div>
               </CardContent>
             </Card>
 
@@ -210,115 +160,61 @@ export default function AddCompany({
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Phone className="h-5 w-5" /> Contact Information
+                  <User className="h-5 w-5" /> Contact Information
                 </CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <DefaultFormTextField 
                   form={form} 
-                  name="phone" 
-                  label="Phone Number" 
-                  placeholder="Enter phone number" 
+                  name="contact_person" 
+                  label="Contact Person" 
+                  placeholder="Enter contact person name" 
                 />
                 <DefaultFormTextField 
                   form={form} 
-                  name="email" 
-                  label="Email Address" 
-                  placeholder="Enter email address" 
+                  name="contact_number" 
+                  label="Contact Number" 
+                  placeholder="Enter contact number" 
                 />
-                <div className="md:col-span-2">
-                  <DefaultFormTextField 
-                    form={form} 
-                    name="web_address" 
-                    label="Website" 
-                    placeholder="https://example.com" 
-                  />
-                </div>
               </CardContent>
             </Card>
 
-            {/* Registered Address */}
+            {/* Location Information */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5" /> Registered Address
+                  <MapPin className="h-5 w-5" /> Location Information
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <DefaultFormTextArea 
                   form={form} 
-                  name="address" 
-                  label="Address" 
-                  placeholder="Enter complete address" 
-                  className="resize-none" 
-                />
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <DefaultFormTextField 
-                    form={form} 
-                    name="city" 
-                    label="City" 
-                    placeholder="Enter city" 
-                  />
-                  <DefaultFormTextField 
-                    form={form} 
-                    name="state" 
-                    label="State" 
-                    placeholder="Enter state" 
-                  />
-                  <DefaultFormTextField 
-                    form={form} 
-                    name="pincode" 
-                    label="Pincode" 
-                    placeholder="Enter pincode" 
-                  />
-                  <DefaultFormTextField 
-                    form={form} 
-                    name="country" 
-                    label="Country" 
-                    placeholder="Enter country" 
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Corporate Address */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5" /> Corporate Address
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <DefaultFormTextArea 
-                  form={form} 
-                  name="corporate_address" 
-                  label="Corporate Address" 
-                  placeholder="Enter corporate address" 
+                  name="location" 
+                  label="Location" 
+                  placeholder="Enter complete location/address" 
                   className="resize-none" 
                 />
                 <DefaultFormTextField 
                   form={form} 
-                  name="corporate_phone" 
-                  label="Corporate Phone" 
-                  placeholder="Enter corporate phone number" 
+                  name="pincode" 
+                  label="Pincode" 
+                  placeholder="Enter pincode" 
                 />
               </CardContent>
             </Card>
 
-            {/* Additional Information */}
+            {/* Agreement Information */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" /> Additional Information
+                  <Calendar className="h-5 w-5" /> Agreement Information
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <DefaultFormTextArea 
+                <DefaultFormDatePicker 
                   form={form} 
-                  name="company_description" 
-                  label="Company Description" 
-                  placeholder="Enter company description (optional)" 
-                  className="resize-none min-h-[100px]" 
+                  name="signed_on" 
+                  label="Signing Date" 
                 />
               </CardContent>
             </Card>
@@ -333,7 +229,7 @@ export default function AddCompany({
                 Cancel
               </Button>
               <Button type="submit" size="lg">
-                {companyId ? "Update Company" : "Add Company"}
+                {organizationId ? "Update Organization" : "Add Organization"}
               </Button>
             </div>
           </form>
