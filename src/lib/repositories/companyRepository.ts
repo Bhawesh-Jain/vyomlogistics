@@ -8,6 +8,8 @@ export interface Company {
   abbr: string;
   currency_symbol: string;
   currency: string;
+  phone: string;
+  email: string;
 }
 
 export class CompanyRepository extends RepositoryBase {
@@ -20,7 +22,7 @@ export class CompanyRepository extends RepositoryBase {
     try {
       const data = await new QueryBuilder('company_master')
         .where('is_active = 1')
-        .select(['company_id', 'company_name', 'abbr', 'currency_symbol', 'currency'])
+        .select(['company_id', 'company_name', 'abbr', 'currency_symbol', 'currency', 'phone', 'email'])
 
       if (data.length == 0) {
         return this.failure('No Company Found!')

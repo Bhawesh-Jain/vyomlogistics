@@ -69,11 +69,18 @@ export default function CompanyMaster() {
       visible: true,
     },
     {
-      id: "abbr",
-      header: "Type",
-      accessorKey: "abbr",
+      id: "phone",
+      header: "Phone",
+      accessorKey: "phone",
       sortable: true,
       visible: true,
+    },
+    {
+      id: "email",
+      header: "Email",
+      accessorKey: "email",
+      visible: true,
+      sortable: true,
     },
     {
       id: "actions",
@@ -99,8 +106,8 @@ export default function CompanyMaster() {
     <Container>
       <div className="flex justify-between items-center">
         <CardHeader>
-          <CardTitle>Trainer Management</CardTitle>
-          <CardDescription>Manage all trainers and their details</CardDescription>
+          <CardTitle>Company Management</CardTitle>
+          <CardDescription>Manage all companies and their details</CardDescription>
         </CardHeader>
 
         <CardHeader>
