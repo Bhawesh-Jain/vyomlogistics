@@ -10,6 +10,12 @@ const MAX_FILE_SIZE_MB = 20;
 const DEFAULT_UPLOAD_DIR = './uploads';
 const DEFAULT_HARD_DELETE = true;
 
+export type FileTransfer = {
+  name: string;
+  type: string;
+  arrayBuffer: number[];
+};
+
 export interface SaveFileResult {
     image: string;
     fileId: number;
