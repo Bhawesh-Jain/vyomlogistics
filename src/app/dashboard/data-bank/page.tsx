@@ -12,7 +12,9 @@ import {
   Upload,
   X,
   RefreshCw,
+  Search,
 } from "lucide-react";
+import { Input } from "@/components/ui/input"; // Add your Input component
 import { getFolderList, uploadDataFile, getFolderById } from "@/lib/actions/data-bank";
 import { DataFile, Folder } from "@/lib/repositories/dataRepository";
 import { formatDateTime } from "@/lib/utils/date";
@@ -32,6 +34,7 @@ export default function ExcelFileList() {
   const [uploadingFor, setUploadingFor] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
   const [refreshingFolder, setRefreshingFolder] = useState<number | null>(null);
+  const [searchTerm, setSearchTerm] = useState(""); // 👈 NEW
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const { showError, showSuccess } = useGlobalDialog();
 
@@ -85,7 +88,6 @@ export default function ExcelFileList() {
   }
 
   const handleFileSelect = (folderId: number, file: File) => {
-    // Validate file type
     const validTypes = [
       'application/vnd.ms-excel',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -97,7 +99,6 @@ export default function ExcelFileList() {
       return;
     }
 
-    // Validate file size (optional - e.g., max 10MB)
     const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
       showError("File size must be less than 10MB", '');
@@ -139,7 +140,6 @@ export default function ExcelFileList() {
     if (files && files.length > 0) {
       handleFileSelect(folderId, files[0]);
     }
-    // Reset input value so same file can be selected again
     e.target.value = '';
   };
 
@@ -177,6 +177,20 @@ export default function ExcelFileList() {
     })();
   }, [reload, form]);
 
+  // Filtered folders based on search
+  const filteredGroups = groups.filter((group) => {
+    const term = searchTerm.toLowerCase();
+    const folderName = group.folder_name.toLowerCase();
+    const orgName = group.org_name?.toLowerCase() || "";
+    const hasMatchingFile = group.files.some(f => f.file_name.toLowerCase().includes(term));
+
+    return (
+      folderName.includes(term) ||
+      orgName.includes(term) ||
+      hasMatchingFile
+    );
+  });
+
   if (loading)
     return (
       <div className="flex justify-center items-center h-40">
@@ -187,13 +201,24 @@ export default function ExcelFileList() {
 
   return (
     <Container>
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center flex-wrap gap-3">
         <CardHeader>
           <CardTitle>Data Management</CardTitle>
           <CardDescription>Manage all folders and their files</CardDescription>
         </CardHeader>
 
-        <div className="grid grid-cols-2 items-center gap-2 justify-center">
+        <div className="flex items-center gap-2">
+          {/* 🔍 Search box */}
+          <div className="relative">
+            <Search className="absolute left-2 top-2.5 w-4 h-4 text-gray-500" />
+            <Input
+              placeholder="Search folders..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-8 w-56"
+            />
+          </div>
+
           <ButtonTooltip
             variant="outline"
             onClick={refreshAllFolders}
@@ -219,7 +244,7 @@ export default function ExcelFileList() {
           {form
             ? <AddFolder setForm={() => setForm(false)} setReload={setReload} folderId={selected?.folder_id} />
             : <div className="space-y-2">
-              {groups.map((group) => {
+              {filteredGroups.map((group) => {
                 const latest = group.files[0];
                 const isExpanded = expanded[group.folder_id];
                 const isDraggedOver = dragOver === group.folder_id;
@@ -377,9 +402,9 @@ export default function ExcelFileList() {
                   </Card>
                 );
               })}
-              {groups.length === 0 && (
+              {filteredGroups.length === 0 && (
                 <p className="text-gray-500 text-sm italic">
-                  No Excel files uploaded yet.
+                  No folders match your search.
                 </p>
               )}
             </div>}
