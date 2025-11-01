@@ -1,5 +1,6 @@
-import { executeQuery, QueryBuilder } from "../helpers/db-helper";
+import { executeQuery, QueryBuilder, withTransaction } from "../helpers/db-helper";
 import { RepositoryBase } from "../helpers/repository-base"
+import mysql from 'mysql2/promise';
 
 export interface Godown {
   godown_id: number;
@@ -38,7 +39,6 @@ export interface SpaceAllocation {
   allocation_start_date: string;
   allocation_end_date: string;
   agreement_id?: number;
-  agreement_number?: string;
   status: string;
   billing_cycle: string;
 }
@@ -102,9 +102,11 @@ export class WarehouseRepository extends RepositoryBase {
         ORDER BY g.created_on DESC
       `;
 
+      console.log(sql);
+      
       const params = orgId ? [orgId] : [];
       const godowns = await executeQuery(sql, params) as Godown[];
-      
+
       return this.success(godowns);
     } catch (error) {
       return this.handleError(error);
@@ -132,7 +134,7 @@ export class WarehouseRepository extends RepositoryBase {
       `;
 
       const godowns = await executeQuery(sql, [godownId]) as Godown[];
-      
+
       if (godowns.length === 0) {
         return this.failure('Godown not found');
       }
@@ -226,14 +228,14 @@ export class WarehouseRepository extends RepositoryBase {
                gs.space_code,
                gs.available_area,
                (gs.total_area - gs.available_area) as utilized_area,
-               gs.capacity_unit,
+               g.capacity_unit,
                o.org_name as company_name,
-               oa.agreement_id,
-               oa.agreement_number
+               oa.agreement_id
         FROM space_allocations sa
         JOIN godown_spaces gs ON sa.space_id = gs.space_id
         JOIN organizations o ON sa.allocated_to_org_id = o.org_id
         LEFT JOIN organization_agreements oa ON sa.agreement_id = oa.agreement_id
+        LEFT JOIN godowns g ON g.godown_id = gs.godown_id
         WHERE sa.status = 'active'
         ${godownId ? 'AND sa.godown_id = ?' : ''}
         ORDER BY sa.allocation_end_date ASC
@@ -241,7 +243,7 @@ export class WarehouseRepository extends RepositoryBase {
 
       const params = godownId ? [godownId] : [];
       const spaces = await executeQuery(sql, params) as SpaceAllocation[];
-      
+
       return this.success(spaces);
     } catch (error) {
       return this.handleError(error);
@@ -262,7 +264,7 @@ export class WarehouseRepository extends RepositoryBase {
       `;
 
       const spaces = await executeQuery(sql, [godownId]) as GodownSpace[];
-      
+
       return this.success(spaces);
     } catch (error) {
       return this.handleError(error);
@@ -271,63 +273,52 @@ export class WarehouseRepository extends RepositoryBase {
 
   async allocateSpace(data: SpaceAllocationData, userId: string) {
     try {
-      // Start transaction
-      await executeQuery('START TRANSACTION');
+      return withTransaction(async (connection) => {
+        const orgId = await this.getOrgIdByGodown(data.godown_id, connection);
+        const spaceData = {
+          godown_id: data.godown_id,
+          org_id: orgId,
+          space_name: data.space_name,
+          space_code: data.space_code,
+          total_area: parseFloat(data.allocated_area),
+          available_area: parseFloat(data.allocated_area), // Initially all area is available
+          monthly_rent_per_unit: parseFloat(data.monthly_rent) / parseFloat(data.allocated_area),
+          is_occupied: 1,
+          allocated_to_org_id: parseInt(data.allocated_to_org_id),
+          agreement_id: data.agreement_id ? parseInt(data.agreement_id) : null,
+          allocation_start_date: data.allocation_start_date,
+          allocation_end_date: data.allocation_end_date,
+          status: 'occupied',
+          updated_by: userId
+        };
 
-      // First, create the godown space
-      const spaceData = {
-        godown_id: data.godown_id,
-        org_id: await this.getOrgIdByGodown(data.godown_id),
-        space_name: data.space_name,
-        space_code: data.space_code,
-        total_area: parseFloat(data.allocated_area),
-        available_area: parseFloat(data.allocated_area), // Initially all area is available
-        monthly_rent_per_unit: parseFloat(data.monthly_rent) / parseFloat(data.allocated_area),
-        is_occupied: 1,
-        allocated_to_org_id: parseInt(data.allocated_to_org_id),
-        agreement_id: data.agreement_id ? parseInt(data.agreement_id) : null,
-        allocation_start_date: data.allocation_start_date,
-        allocation_end_date: data.allocation_end_date,
-        status: 'occupied',
-        updated_by: userId
-      };
+        const spaceResult = await new QueryBuilder('godown_spaces')
+          .setConnection(connection)
+          .insert(spaceData);
 
-      const spaceResult = await new QueryBuilder('godown_spaces').insert(spaceData);
+        const allocationData = {
+          space_id: spaceResult,
+          godown_id: data.godown_id,
+          org_id: orgId,
+          allocated_to_org_id: parseInt(data.allocated_to_org_id),
+          agreement_id: data.agreement_id ? parseInt(data.agreement_id) : null,
+          allocated_area: parseFloat(data.allocated_area),
+          monthly_rent: parseFloat(data.monthly_rent),
+          rent_currency: 'INR',
+          allocation_start_date: data.allocation_start_date,
+          allocation_end_date: data.allocation_end_date,
+          status: 'active',
+          billing_cycle: 'monthly',
+          updated_by: userId
+        };
 
-      if (spaceResult === 0) {
-        await executeQuery('ROLLBACK');
-        return this.failure('Failed to create space');
-      }
+        const allocationResult = await new QueryBuilder('space_allocations')
+          .setConnection(connection)
+          .insert(allocationData);
 
-      // Then create the space allocation record
-      const allocationData = {
-        space_id: spaceResult,
-        godown_id: data.godown_id,
-        org_id: await this.getOrgIdByGodown(data.godown_id),
-        allocated_to_org_id: parseInt(data.allocated_to_org_id),
-        agreement_id: data.agreement_id ? parseInt(data.agreement_id) : null,
-        allocated_area: parseFloat(data.allocated_area),
-        monthly_rent: parseFloat(data.monthly_rent),
-        rent_currency: 'INR', // Default currency
-        allocation_start_date: data.allocation_start_date,
-        allocation_end_date: data.allocation_end_date,
-        status: 'active',
-        billing_cycle: 'monthly',
-        updated_by: userId
-      };
-
-      const allocationResult = await new QueryBuilder('space_allocations').insert(allocationData);
-
-      if (allocationResult === 0) {
-        await executeQuery('ROLLBACK');
-        return this.failure('Failed to create allocation');
-      }
-
-      await executeQuery('COMMIT');
-      return this.success('Space allocated successfully');
-
+        return this.success('Space allocated successfully');
+      });
     } catch (error) {
-      await executeQuery('ROLLBACK');
       return this.handleError(error);
     }
   }
@@ -337,19 +328,18 @@ export class WarehouseRepository extends RepositoryBase {
       // Get current space details
       const space = await new QueryBuilder('godown_spaces')
         .where('space_id = ?', spaceId)
-        .selectOne(['total_area', 'available_area']);
+        .selectOne(['total_area', 'available_area']) as GodownSpace;
 
       if (!space) {
         return this.failure('Space not found');
       }
 
       const newAvailableArea = space.total_area - utilizedArea;
-      
+
       if (newAvailableArea < 0) {
         return this.failure('Utilized area cannot exceed total area');
       }
 
-      // Update space availability
       await new QueryBuilder('godown_spaces')
         .where('space_id = ?', spaceId)
         .update({
@@ -357,7 +347,6 @@ export class WarehouseRepository extends RepositoryBase {
           updated_by: userId
         });
 
-      // Log utilization
       await new QueryBuilder('space_utilization_logs')
         .insert({
           space_id: spaceId,
@@ -377,45 +366,42 @@ export class WarehouseRepository extends RepositoryBase {
 
   async terminateAllocation(allocationId: number, userId: string) {
     try {
-      await executeQuery('START TRANSACTION');
+      await withTransaction(async (connection) => {
+        const allocation = await new QueryBuilder('space_allocations')
+          .setConnection(connection)
+          .where('allocation_id = ?', allocationId)
+          .selectOne(['space_id']) as SpaceAllocation;
 
-      // Get space ID from allocation
-      const allocation = await new QueryBuilder('space_allocations')
-        .where('allocation_id = ?', allocationId)
-        .selectOne(['space_id']);
+        if (!allocation) {
+          return this.failure('Allocation not found');
+        }
 
-      if (!allocation) {
-        await executeQuery('ROLLBACK');
-        return this.failure('Allocation not found');
-      }
+        await new QueryBuilder('space_allocations')
+          .setConnection(connection)
+          .where('allocation_id = ?', allocationId)
+          .update({
+            status: 'terminated',
+            actual_end_date: new Date(),
+            updated_by: userId
+          });
 
-      // Update allocation status
-      await new QueryBuilder('space_allocations')
-        .where('allocation_id = ?', allocationId)
-        .update({
-          status: 'terminated',
-          actual_end_date: new Date(),
-          updated_by: userId
-        });
+        await new QueryBuilder('godown_spaces')
+          .setConnection(connection)
+          .where('space_id = ?', allocation.space_id)
+          .update({
+            is_occupied: 0,
+            allocated_to_org_id: null,
+            agreement_id: null,
+            allocation_start_date: null,
+            allocation_end_date: null,
+            status: 'available',
+            available_area: await this.getTotalAreaBySpace(allocation.space_id),
+            updated_by: userId
+          });
 
-      // Free up the space
-      await new QueryBuilder('godown_spaces')
-        .where('space_id = ?', allocation.space_id)
-        .update({
-          is_occupied: 0,
-          allocated_to_org_id: null,
-          agreement_id: null,
-          allocation_start_date: null,
-          allocation_end_date: null,
-          status: 'available',
-          available_area: await this.getTotalAreaBySpace(allocation.space_id),
-          updated_by: userId
-        });
-
-      await executeQuery('COMMIT');
-      return this.success('Allocation terminated successfully');
+        return this.success('Allocation terminated successfully');
+      });
     } catch (error) {
-      await executeQuery('ROLLBACK');
       return this.handleError(error);
     }
   }
@@ -444,7 +430,7 @@ export class WarehouseRepository extends RepositoryBase {
 
       const params = godownId ? [godownId] : [];
       const utilization = await executeQuery(sql, params);
-      
+
       return this.success(utilization);
     } catch (error) {
       return this.handleError(error);
@@ -468,8 +454,8 @@ export class WarehouseRepository extends RepositoryBase {
         GROUP BY sa.allocated_to_org_id
       `;
 
-      const usage = await executeQuery(sql, [companyId]);
-      
+      const usage = await executeQuery(sql, [companyId]) as any[];
+
       return this.success(usage.length > 0 ? usage[0] : null);
     } catch (error) {
       return this.handleError(error);
@@ -495,7 +481,7 @@ export class WarehouseRepository extends RepositoryBase {
       `;
 
       const expiring = await executeQuery(sql, [daysThreshold]);
-      
+
       return this.success(expiring);
     } catch (error) {
       return this.handleError(error);
@@ -503,19 +489,19 @@ export class WarehouseRepository extends RepositoryBase {
   }
 
   // Helper methods
-  private async getOrgIdByGodown(godownId: number): Promise<number> {
+  private async getOrgIdByGodown(godownId: number, transaction?: mysql.Connection): Promise<number> {
     const result = await new QueryBuilder('godowns')
       .where('godown_id = ?', godownId)
-      .selectOne(['org_id']);
-    
+      .selectOne(['org_id']) as Godown;
+
     return result?.org_id || 0;
   }
 
   private async getGodownIdBySpace(spaceId: number): Promise<number> {
     const result = await new QueryBuilder('godown_spaces')
       .where('space_id = ?', spaceId)
-      .selectOne(['godown_id']);
-    
+      .selectOne(['godown_id']) as Godown;
+
     return result?.godown_id || 0;
   }
 
@@ -523,16 +509,16 @@ export class WarehouseRepository extends RepositoryBase {
     const result = await new QueryBuilder('space_allocations')
       .where('space_id = ?', spaceId)
       .where('status = ?', 'active')
-      .selectOne(['allocation_id']);
-    
+      .selectOne(['allocation_id']) as SpaceAllocation;
+
     return result?.allocation_id || 0;
   }
 
   private async getTotalAreaBySpace(spaceId: number): Promise<number> {
     const result = await new QueryBuilder('godown_spaces')
       .where('space_id = ?', spaceId)
-      .selectOne(['total_area']);
-    
+      .selectOne(['total_area']) as GodownSpace;
+
     return result?.total_area || 0;
   }
 
@@ -543,7 +529,7 @@ export class WarehouseRepository extends RepositoryBase {
         .where('status = ?', 1)
         .where('valid_upto >= ?', new Date())
         .select(['agreement_id', 'org_id', 'start_date', 'valid_upto']);
-      
+
       return this.success(agreements);
     } catch (error) {
       return this.handleError(error);
@@ -567,7 +553,7 @@ export class WarehouseRepository extends RepositoryBase {
       `;
 
       const spaces = await executeQuery(sql, [agreementId]);
-      
+
       return this.success(spaces);
     } catch (error) {
       return this.handleError(error);

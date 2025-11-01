@@ -72,9 +72,9 @@ export default function WarehouseManagement() {
   };
 
   const getUtilizationPercentage = (godown: Godown) => {
-    if (!godown.total_capacity || godown.total_capacity === 0) return 0;
-    const utilized = godown.total_capacity - godown.available_capacity;
-    return (utilized / godown.total_capacity) * 100;
+    if (!godown.total_capacity || godown.total_capacity == 0) return 0;
+    const utilized = Number(godown.total_capacity) - Number(godown.available_capacity);
+    return (utilized / Number(godown.total_capacity)) * 100;
   };
 
   const getUtilizationColor = (percentage: number) => {
@@ -120,8 +120,8 @@ export default function WarehouseManagement() {
             className={`h-2 ${getUtilizationColor(getUtilizationPercentage(row))}`}
           />
           <div className="flex justify-between text-xs text-muted-foreground mt-1">
-            <span>Used: {row.total_capacity - row.available_capacity} {row.capacity_unit}</span>
-            <span>Total: {row.total_capacity} {row.capacity_unit}</span>
+            <span>Used: {Number(row.total_capacity) - Number(row.available_capacity)} {row.capacity_unit}</span>
+            <span>Total: {Number(row.total_capacity)} {row.capacity_unit}</span>
           </div>
         </div>
       ),
