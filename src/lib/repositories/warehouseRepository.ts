@@ -86,7 +86,7 @@ export class WarehouseRepository extends RepositoryBase {
         SELECT g.*, 
                cm.currency_symbol,
                COUNT(DISTINCT sa.allocated_to_org_id) as allocated_companies_count,
-               (SELECT COALESCE(SUM(gs.total_area - gs.available_area), 0) 
+               (SELECT COALESCE(SUM(g.total_capacity - gs.available_area), 0) 
                 FROM godown_spaces gs 
                 WHERE gs.godown_id = g.godown_id AND gs.is_occupied = 1) as utilized_capacity,
                (g.total_capacity - (SELECT COALESCE(SUM(gs.total_area - gs.available_area), 0) 
@@ -101,8 +101,6 @@ export class WarehouseRepository extends RepositoryBase {
         GROUP BY g.godown_id
         ORDER BY g.created_on DESC
       `;
-
-      console.log(sql);
       
       const params = orgId ? [orgId] : [];
       const godowns = await executeQuery(sql, params) as Godown[];
