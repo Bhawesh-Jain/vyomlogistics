@@ -100,7 +100,7 @@ export default function SpaceManagement({ godownId }: { godownId: number }) {
               </div>
               <div>
                 <div className="text-2xl font-bold">
-                  {spaces.reduce((sum, space) => sum + space.allocated_area, 0)}
+                  {spaces.reduce((sum, space) => Number(sum) + Number(space.allocated_area), 0)}
                 </div>
                 <div className="text-sm text-muted-foreground">Total Allocated</div>
               </div>
@@ -132,7 +132,7 @@ export default function SpaceManagement({ godownId }: { godownId: number }) {
               </div>
               <div>
                 <div className="text-2xl font-bold">
-                  {spaces.reduce((sum, space) => sum + space.monthly_rent, 0).toLocaleString()}
+                  {spaces.reduce((sum, space) => Number(sum) + Number(space.monthly_rent), 0).toLocaleString()}
                 </div>
                 <div className="text-sm text-muted-foreground">Monthly Revenue</div>
               </div>
