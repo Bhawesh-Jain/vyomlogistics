@@ -209,7 +209,7 @@ export default function SpaceManagement({ godownId }: { godownId: number }) {
 
                 {space.agreement_id && (
                   <div className="text-sm text-muted-foreground">
-                    Agreement: {space.agreement_number || `#${space.agreement_id}`}
+                    Agreement: {`#${space.agreement_id}`}
                   </div>
                 )}
               </div>
@@ -236,7 +236,7 @@ export default function SpaceManagement({ godownId }: { godownId: number }) {
             <Square className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">No Space Allocations</h3>
             <p className="text-muted-foreground mb-6">
-              This godown doesn't have any space allocations yet.
+              This godown doesn&lsquo;t have any space allocations yet.
             </p>
             <Button onClick={() => setShowAllocateDialog(true)}>
               <Plus className="h-4 w-4 mr-2" />
