@@ -3,10 +3,13 @@ import { RepositoryBase } from "../helpers/repository-base"
 import { FolderFormValues } from "@/app/dashboard/data-bank/blocks/AddItem";
 import { File } from "fetch-blob/file.js";
 import { saveFile } from "../helpers/file-helper";
+import { customLog } from "../utils";
 
 export interface Folder {
   folder_id: number;
   folder_name: string;
+
+  parent_id: number;
 
   company_id: number;
   company_name: string;
@@ -21,7 +24,19 @@ export interface Folder {
   created_on: string;
   updated_on: string;
 
+  sub_folders: Folder[]
+  
+  permissions?: FolderPermissions;
+
   files: DataFile[];
+}
+
+export interface FolderPermissions {
+  can_create_subfolder: boolean;
+  can_upload_file: boolean;
+  can_download_file: boolean;
+  can_rename: boolean;
+  can_delete: boolean;
 }
 
 export interface DataFile {
@@ -42,36 +57,72 @@ export class DataRepository extends RepositoryBase {
 
   async getFolderList() {
     try {
-      let sql = `
-        SELECT df.*,
-          cm.company_name, cm.abbr,
-          o.org_name
-        FROM data_folders df
-        LEFT JOIN organizations o ON o.org_id = df.org_id
-        LEFT JOIN company_master cm ON o.company_id = cm.company_id
-        WHERE df.status = 1
-      `;
+      const sql = `
+      SELECT df.*,
+        cm.company_name, cm.abbr,
+        o.org_name
+      FROM data_folders df
+      LEFT JOIN organizations o ON o.org_id = df.org_id
+      LEFT JOIN company_master cm ON o.company_id = cm.company_id
+      WHERE df.status = 1
+      ORDER BY df.folder_id ASC
+    `;
 
-      const folders = await executeQuery(sql) as Folder[];
+      const flatFolders = await executeQuery(sql) as Folder[];
 
-      if (folders.length == 0) {
-        return this.failure('No Folders Found!');
+      if (flatFolders.length === 0) {
+        return this.failure("No Folders Found!");
       }
 
-      for (let i = 0; i < folders.length; i++) {
-        const element = folders[i];
+      const folderMap = new Map<number, Folder>();
 
-        const files = await new QueryBuilder('file_log')
+      flatFolders.forEach(f => {
+        folderMap.set(f.folder_id, { ...f, sub_folders: [], files: [] });
+      });
+
+      const rootFolders: Folder[] = [];
+
+      folderMap.forEach(folder => {
+        if (folder.parent_id && folder.parent_id !== 0) {
+          const parent = folderMap.get(folder.parent_id);
+          if (parent) {
+            parent.sub_folders!.push(folder);
+          }
+        } else {
+          rootFolders.push(folder); 
+        }
+      });
+
+      for (const folder of Array.from(folderMap.values())) {
+        const files = await new QueryBuilder("file_log")
           .where("associated_type = 'data_file'")
           .where("status = '1'")
-          .where("associated_id = ?", element.folder_id)
-          .orderBy('id', 'DESC')
-          .select(['id', 'identifier', 'file_type', 'file_name', 'file_size', 'file_mime', 'created_on']);
+          .where("associated_id = ?", folder.folder_id)
+          .orderBy("id", "DESC")
+          .select([
+            "id",
+            "identifier",
+            "file_type",
+            "file_name",
+            "file_size",
+            "file_mime",
+            "created_on",
+          ]);
 
-        element.files = files as DataFile[];
+        folder.files = files as DataFile[];
+
+        folder.permissions = {
+          can_create_subfolder: true,
+          can_delete: true,
+          can_download_file: true,
+          can_rename: true,
+          can_upload_file: true,
+        }
       }
 
-      return this.success(folders);
+      customLog(rootFolders);
+      
+      return this.success(rootFolders);
     } catch (error) {
       return this.handleError(error);
     }
