@@ -15,7 +15,7 @@ export const zodPatterns = {
   number: {
     message: "Please enter a valid number",
     schema: () => z.string()
-    
+
   },
   phone: {
     regex: /^[6-9]\d{9}$/,
@@ -24,6 +24,17 @@ export const zodPatterns = {
       .min(10, "Phone number must be at least 10 digits")
       .max(12, "Phone number cannot exceed 12 digits")
       .regex(/^[6-9]\d{9}$/, "Please enter a valid Indian mobile number")
+  },
+  phoneOptional: {
+    regex: /^[6-9]\d{9}$/,
+    message: "Please enter a valid Indian mobile number",
+    schema: () =>
+      z
+        .string()
+        .min(10, "Phone number must be at least 10 digits")
+        .max(12, "Phone number cannot exceed 12 digits")
+        .regex(/^[6-9]\d{9}$/, "Please enter a valid Indian mobile number")
+        .or(z.literal(""))
   },
   pan: {
     regex: /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/i,
@@ -41,6 +52,15 @@ export const zodPatterns = {
     regex: /^\d{6}$/,
     message: "Must be 6 digits",
     schema: () => z.string().length(6, "Must be 6 digits")
+  },
+  emailOptional: {
+    regex: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+    message: "Please enter a valid email address",
+    schema: () =>
+      z
+        .string()
+        .email("Please enter a valid email address")
+        .or(z.literal(""))
   },
   email: {
     regex: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
@@ -78,16 +98,16 @@ export const zodPatterns = {
   },
   imageList: {
     schema: () => z.array(z.object({
-        name: z.string(),
-        type: z.string(),
-        arrayBuffer: z.array(z.number()),
-      })).optional()
+      name: z.string(),
+      type: z.string(),
+      arrayBuffer: z.array(z.number()),
+    })).optional()
   },
   image: {
     schema: () => z.object({
-        name: z.string(),
-        type: z.string(),
-        arrayBuffer: z.array(z.number()),
-      }).optional()
+      name: z.string(),
+      type: z.string(),
+      arrayBuffer: z.array(z.number()),
+    }).optional()
   },
 } as const;

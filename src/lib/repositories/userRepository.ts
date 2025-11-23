@@ -154,15 +154,27 @@ export class UserRepository extends RepositoryBase {
     phone: string
   ) {
     try {
-      const result = await this.queryBuilder
-        .where('email = ?', email)
-        .where('phone = ?', phone)
-        .select(['id']);
+      if (phone.length == 0 && email.length == 0) {
+        return this.failure('One identifier required!')
+      }
+
+      const query = this.queryBuilder
+        .where('1 = 1');
+
+      if (phone.length > 0) {
+        query.where('phone = ?', phone);
+      }
+
+      if (email.length > 0) {
+        query.where('email = ?', email);
+      }
+
+      const result = await query.select(['id']);
 
       if (result && result.length > 0) {
-        return this.success('User already exists');
+        return this.failure('User already exists');
       }
-      return this.failure('User not found');
+      return this.success('User not found');
     } catch (error) {
       return this.handleError(error);
     }
@@ -181,8 +193,8 @@ export class UserRepository extends RepositoryBase {
   ) {
     try {
       const existing = await this.checkExisting(data.email || '', data.phone || '');
-      if (existing.success) {
-        return this.failure(existing.error);
+      if (!existing.success) {
+        return existing;
       }
 
       // var branches = data.branch.split(',')

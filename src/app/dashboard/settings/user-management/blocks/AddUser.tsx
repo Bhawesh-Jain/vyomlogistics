@@ -15,12 +15,13 @@ import { Role } from "@/lib/repositories/accessRepository";
 import { Branch } from "../../branch-management/blocks/AddBranch";
 import { MultiSelect } from "@/components/multi-select";
 import { Card, CardContent, CardDescription, CardTitle, CardHeader } from "@/components/ui/card";
+import { zodPatterns } from "@/lib/utils/zod-patterns";
 
 
 const formScheme = z.object({
   name: z.string().min(2, "Add a name").max(255, "Name must be less than 255 characters"),
-  email: z.string().email().max(255, "Email must be less than 255 characters").optional(),
-  phone: z.string().max(14, "Phone number must be less than 14 characters").optional(),
+  email: zodPatterns.emailOptional.schema(),
+  phone: zodPatterns.phoneOptional.schema(),
   password: z.string().min(4, "Password must be at least 4 characters long"),
   role: z.string().min(1, "Please select a role"),
   // branch: z.string().min(1, "Branch must be selected"),
