@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Input } from "@/components/ui/input";
 import { Check, ChevronDown } from "lucide-react";
 
 interface ComboboxOption {
@@ -18,6 +17,13 @@ interface ComboboxProps {
   className?: string;
   disabled?: boolean;
 }
+
+const Input = ({ className = "", ...props }: any) => (
+  <input
+    className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+    {...props}
+  />
+);
 
 export function Combobox({
   options,
@@ -42,7 +48,7 @@ export function Combobox({
   });
 
   const selectedOption = options.find(opt => opt.value === value);
-  const displayValue = selectedOption ? selectedOption.label : "";
+  const displayValue = selectedOption ? selectedOption.label : value;
 
   const filteredOptions = options.filter(option =>
     option.label.toLowerCase().includes(searchTerm.toLowerCase())
@@ -78,6 +84,9 @@ export function Combobox({
         containerRef.current &&
         !containerRef.current.contains(event.target as Node)
       ) {
+        if (searchTerm.trim()) {
+          onChange(searchTerm.trim());
+        }
         setIsOpen(false);
         setSearchTerm("");
       }
@@ -85,14 +94,14 @@ export function Combobox({
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [searchTerm, onChange]);
 
   useEffect(() => {
     setHighlightedIndex(0);
   }, [searchTerm]);
 
   useEffect(() => {
-    if (isOpen && dropdownRef.current) {
+    if (isOpen && dropdownRef.current && filteredOptions.length > 0) {
       const highlightedElement = dropdownRef.current.children[
         highlightedIndex
       ] as HTMLElement;
@@ -101,7 +110,7 @@ export function Combobox({
         highlightedElement.scrollIntoView({ block: "nearest" });
       }
     }
-  }, [highlightedIndex, isOpen]);
+  }, [highlightedIndex, isOpen, filteredOptions.length]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
@@ -147,8 +156,13 @@ export function Combobox({
       case "Enter":
         e.preventDefault();
         e.stopPropagation();
-        if (filteredOptions[highlightedIndex]) {
+
+        if (filteredOptions.length > 0 && filteredOptions[highlightedIndex]) {
           handleOptionSelect(filteredOptions[highlightedIndex].value);
+        } else if (searchTerm.trim()) {
+          onChange(searchTerm.trim());
+          setIsOpen(false);
+          setSearchTerm("");
         }
         break;
 
@@ -159,6 +173,9 @@ export function Combobox({
         break;
 
       case "Tab":
+        if (searchTerm.trim()) {
+          onChange(searchTerm.trim());
+        }
         setIsOpen(false);
         setSearchTerm("");
         break;
@@ -193,72 +210,62 @@ export function Combobox({
           type="button"
           onClick={handleToggle}
           disabled={disabled}
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
           tabIndex={-1}
         >
           <ChevronDown
-            className={`h-4 w-4 transition-transform ${
-              isOpen ? "rotate-180" : ""
-            }`}
+            className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
           />
         </button>
       </div>
 
-      {/* --- Portal Dropdown --- */}
       {isOpen &&
         typeof window !== "undefined" &&
         createPortal(
-          filteredOptions.length > 0 ? (
-            <div
-              ref={dropdownRef}
-              tabIndex={-1} 
-              style={{
-                position: "absolute",
-                top: dropdownPos.top,
-                left: dropdownPos.left,
-                width: dropdownPos.width,
-                zIndex: 9999
-              }}
-              className="bg-popover border rounded-md shadow-md max-h-60 overflow-auto"
-            >
-              {filteredOptions.map((option, index) => (
+          <div
+            ref={dropdownRef}
+            tabIndex={-1}
+            style={{
+              position: "absolute",
+              top: dropdownPos.top,
+              left: dropdownPos.left,
+              width: dropdownPos.width,
+              zIndex: 9999
+            }}
+            className="bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto"
+          >
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((option, index) => (
                 <div
                   key={option.value}
                   onClick={() => handleOptionSelect(option.value)}
                   onMouseEnter={() => setHighlightedIndex(index)}
                   className={`px-3 py-2 cursor-pointer flex items-center justify-between
-                    ${
-                      index === highlightedIndex
-                        ? "bg-accent"
-                        : option.value === value
-                        ? "bg-accent/50"
+                    ${index === highlightedIndex
+                      ? "bg-gray-100"
+                      : option.value === value
+                        ? "bg-gray-50"
                         : ""
                     }
-                    hover:bg-accent transition-colors
+                    hover:bg-gray-100 transition-colors
                   `}
                 >
                   <span className="text-sm">{option.label}</span>
                   {option.value === value && (
-                    <Check className="h-4 w-4 text-primary" />
+                    <Check className="h-4 w-4 text-blue-600" />
                   )}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div
-              tabIndex={-1}
-              style={{
-                position: "absolute",
-                top: dropdownPos.top,
-                left: dropdownPos.left,
-                width: dropdownPos.width,
-                zIndex: 9999
-              }}
-              className="bg-popover border rounded-md shadow-md p-3"
-            >
-              <p className="text-sm text-muted-foreground">No results found</p>
-            </div>
-          ),
+              ))
+            ) : searchTerm.trim() ? (
+              <div className="px-3 py-2 text-sm text-gray-600">
+                Press <kbd className="px-1 py-0.5 text-xs border rounded bg-gray-50">Enter</kbd> to add "{searchTerm}"
+              </div>
+            ) : (
+              <div className="px-3 py-2 text-sm text-gray-500">
+                No results found
+              </div>
+            )}
+          </div>,
           document.body
         )}
     </div>

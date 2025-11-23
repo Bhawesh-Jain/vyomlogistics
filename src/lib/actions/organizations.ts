@@ -110,3 +110,10 @@ export async function deleteAgreement(id: number) {
   const userRepository = new OrganizationRepository(session.user_id);
   return await userRepository.deleteAgreement(id, session.user_id);
 }
+
+export async function getServiceNames() {
+  const session = await getSession();
+
+  const userRepository = new OrganizationRepository(session.user_id);
+  return await userRepository.getServiceNames();
+}

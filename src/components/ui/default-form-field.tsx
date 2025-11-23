@@ -4,6 +4,11 @@ import { Input } from "./input";
 import { Select, SelectValue, SelectTrigger, SelectContent, SelectItem } from "./select";
 import { Textarea } from "./textarea";
 
+export interface SpinnerItem {
+  label: string;
+  value: string;
+}
+
 export function DefaultFormTextField({
   label,
   name,

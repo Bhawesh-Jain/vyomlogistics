@@ -7,6 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building2, FileText, Plus, Trash2, Printer, DollarSign, Check, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Combobox } from "@/components/combo-box";
+import { getOrganizationById, getServiceNames } from "@/lib/actions/organizations";
+import { Organization } from "@/lib/repositories/organizationRepository";
+import { SpinnerItem } from "@/components/ui/default-form-field";
 
 // Table components
 const Table = ({ children, className = "" }: any) => (
@@ -27,28 +30,13 @@ const TableCell = ({ children, className = "" }: any) => (
   <td className={`px-4 py-3 ${className}`}>{children}</td>
 );
 
-// Mock services - replace with actual API call
-const mockServices = [
-  { label: "Cloud Hosting", value: "1" },
-  { label: "Software Maintenance", value: "2" },
-  { label: "Technical Support", value: "3" },
-  { label: "Security Services", value: "4" },
-  { label: "Data Backup", value: "5" },
-  { label: "Consulting Services", value: "6" },
-  { label: "License Fees", value: "7" },
-  { label: "Training Services", value: "8" },
-];
-
-// Mock organization details
-const getOrgDetails = (orgId: number) => {
-  return {
-    org_name: "Tech Corp Inc.",
-    contact_person: "John Smith",
-    contact_number: "+1 234-567-8900",
-    location: "123 Tech Street, Silicon Valley",
-    pincode: "94025",
-  };
-};
+interface InvoiceUiItems {
+  service_name: string,
+  description: string,
+  amount: string | number
+  tax: string | number
+  tax_amount: string | number
+}
 
 export default function ManageCompanyItem({
   setForm,
@@ -63,33 +51,49 @@ export default function ManageCompanyItem({
   const [dataLoading, setDataLoading] = useState(false);
   const [monthYear, setMonthYear] = useState<Date>(new Date());
   const [notes, setNotes] = useState('');
-  const [serviceItems, setServiceItems] = useState<any[]>([
-    { service_id: '', description: '', amount: 0, tax_percentage: 0, tax_amount: 0 }
+  const [serviceItems, setServiceItems] = useState<InvoiceUiItems[]>([
+    { service_name: '', description: '', amount: 0, tax: 0, tax_amount: 0 }
   ]);
-  const [orgDetails, setOrgDetails] = useState<any>(null);
+  const [orgDetails, setOrgDetails] = useState<Organization | null>(null);
+  const [services, setServices] = useState<SpinnerItem[]>([]);
   const printRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     if (organizationId) {
-      setDataLoading(true);
-      try {
-        const details = getOrgDetails(organizationId);
-        setOrgDetails(details);
-      } catch (error: any) {
-        toast({
-          title: "Error",
-          description: error?.message || "Failed to fetch organization data",
-          variant: "destructive"
-        });
-      } finally {
-        setDataLoading(false);
-      }
+      (async () => {
+        setDataLoading(true);
+        try {
+          const serviceRes = await getServiceNames();
+
+          if (serviceRes.success) {
+            const formattedData: SpinnerItem[] = serviceRes.result.map((item: string) => ({
+              label: item,
+              value: item,
+            }));
+
+            setServices(formattedData);
+          }
+
+          const details = await getOrganizationById({ id: organizationId, withInvoice: true });
+          if (details.success) {
+            setOrgDetails(details.result);
+          }
+        } catch (error: any) {
+          toast({
+            title: "Error",
+            description: error?.message || "Failed to fetch organization data",
+            variant: "destructive"
+          });
+        } finally {
+          setDataLoading(false);
+        }
+      })();
     }
   }, [organizationId]);
 
   const addServiceItem = () => {
-    setServiceItems([...serviceItems, { service_id: '', description: '', amount: 0, tax_percentage: 0, tax_amount: 0 }]);
+    setServiceItems([...serviceItems, { service_name: '', description: '', amount: 0, tax: 0, tax_amount: 0 }]);
   };
 
   const removeServiceItem = (index: number) => {
@@ -103,21 +107,21 @@ export default function ManageCompanyItem({
     const newItems = [...serviceItems];
     newItems[index] = { ...newItems[index], [field]: value };
 
-    if (field === 'tax_percentage' || field === 'amount') {
+    if (field === 'tax' || field === 'amount') {
       const amount = field === 'amount' ? parseFloat(value) || 0 : newItems[index].amount;
-      const taxPercentage = field === 'tax_percentage' ? parseFloat(value) || 0 : newItems[index].tax_percentage;
-      newItems[index].tax_amount = (amount * taxPercentage) / 100;
+      const taxPercentage = field === 'tax' ? parseFloat(value) || 0 : newItems[index].tax;
+      newItems[index].tax_amount = (Number(amount) * Number(taxPercentage)) / 100;
     }
 
     setServiceItems(newItems);
   };
 
   const calculateSubtotal = () => {
-    return serviceItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+    return serviceItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
   };
 
   const calculateTotalTax = () => {
-    return serviceItems.reduce((sum, item) => sum + (parseFloat(item.tax_amount) || 0), 0);
+    return serviceItems.reduce((sum, item) => sum + (Number(item.tax_amount) || 0), 0);
   };
 
   const calculateTotal = () => {
@@ -202,7 +206,7 @@ export default function ManageCompanyItem({
   }, [serviceItems]);
 
   const handleSave = async () => {
-    if (!serviceItems.some(item => item.service_id)) {
+    if (!serviceItems.some(item => item.service_name)) {
       toast({
         title: "Validation Error",
         description: "Please add at least one service",
@@ -216,7 +220,7 @@ export default function ManageCompanyItem({
       const payload = {
         organization_id: organizationId,
         month_year: monthYear,
-        services: serviceItems.filter(item => item.service_id),
+        services: serviceItems.filter(item => item.service_name),
         notes: notes
       };
 
@@ -299,14 +303,14 @@ export default function ManageCompanyItem({
             </tr>
           </thead>
           <tbody>
-            {serviceItems.filter(item => item.service_id).map((item, index) => (
+            {serviceItems.filter(item => item.service_name).map((item, index) => (
               <tr key={index}>
                 <td>{index + 1}</td>
-                <td>{mockServices.find(s => s.value === item.service_id)?.label || '-'}</td>
+                <td>{services.find(s => s.value === item.service_name)?.label || '-'}</td>
                 <td>{item.description || '-'}</td>
-                <td>₹{parseFloat(item.amount || 0).toFixed(2)}</td>
-                <td>{item.tax_percentage ? `${item.tax_percentage}%` : '-'}</td>
-                <td>₹{(parseFloat(item.amount || 0) + parseFloat(item.tax_amount || 0)).toFixed(2)}</td>
+                <td>₹{Number(item.amount || 0).toFixed(2)}</td>
+                <td>{item.tax ? `${item.tax}%` : '-'}</td>
+                <td>₹{(Number(item.amount || 0) + Number(item.tax_amount || 0)).toFixed(2)}</td>
               </tr>
             ))}
           </tbody>
@@ -421,9 +425,9 @@ export default function ManageCompanyItem({
                   <TableRow key={index}>
                     <TableCell>
                       <Combobox
-                        options={mockServices}
-                        value={item.service_id}
-                        onChange={(value) => updateServiceItem(index, 'service_id', value)}
+                        options={services}
+                        value={item.service_name}
+                        onChange={(value) => updateServiceItem(index, 'service_name', value)}
                         placeholder="Select or type service..."
                       />
                     </TableCell>
@@ -451,19 +455,19 @@ export default function ManageCompanyItem({
                         type="number"
                         onFocus={(e) => e.target.select()}
                         step="0.01"
-                        value={item.tax_percentage}
-                        onChange={(e) => updateServiceItem(index, 'tax_percentage', e.target.value)}
+                        value={item.tax}
+                        onChange={(e) => updateServiceItem(index, 'tax', e.target.value)}
                         placeholder="Optional"
                       />
                     </TableCell>
                     <TableCell>
                       <div className="font-medium">
-                        ₹{(item.tax_amount || 0).toFixed(2)}
+                        ₹{Number(item.tax_amount || 0).toFixed(2)}
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="font-medium">
-                        ₹{((parseFloat(item.amount) || 0) + (parseFloat(item.tax_amount) || 0)).toFixed(2)}
+                        ₹{((Number(item.amount) || 0) + (Number(item.tax_amount) || 0)).toFixed(2)}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -533,7 +537,7 @@ export default function ManageCompanyItem({
           type="button"
           variant="outline"
           onClick={handlePrint}
-          disabled={!orgDetails || !serviceItems.some(item => item.service_id)}
+          disabled={!orgDetails || !serviceItems.some(item => item.service_name)}
         >
           <Printer className="h-4 w-4 mr-2" /> Print Breakdown
         </Button>

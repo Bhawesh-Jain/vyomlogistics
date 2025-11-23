@@ -27,7 +27,7 @@ export interface InvoiceItems {
   inv_id: number;
   org_id: number;
 
-  name: string;
+  service_name: string;
   amount: number;
   tax: number;
   total: number;
@@ -293,6 +293,26 @@ export class OrganizationRepository extends RepositoryBase {
       }
 
       return this.success('Organization Updated Successfully');
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async getServiceNames() {
+    try {
+      let sql = `
+        SELECT DISTINCT service_name
+        FROM invoice_items
+        WHERE status > 0;
+      `;
+
+      const result = await executeQuery(sql) as any[]
+
+      if (result.length == 0) {
+        return this.failure('Request Failed!')
+      }
+
+      return this.success(result);
     } catch (error) {
       return this.handleError(error);
     }
