@@ -76,7 +76,7 @@ export default function AddOrganization({
       (async () => {
         setDataLoading(true);
         try {
-          const result = await getOrganizationById(organizationId);
+          const result = await getOrganizationById({ id: organizationId });
 
 
           if (result.success) {

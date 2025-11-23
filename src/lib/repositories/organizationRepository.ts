@@ -19,6 +19,25 @@ export interface Organization {
   signed_on: string;
   created_on: string;
   updated_on: string;
+
+  invoice_data?: InvoiceItems[]
+}
+
+export interface InvoiceItems {
+  inv_id: number;
+  org_id: number;
+
+  name: string;
+  amount: number;
+  tax: number;
+  total: number;
+  description: string;
+
+  updated_by: number;
+  status: number;
+
+  created_on: string;
+  updated_on: string;
 }
 
 export interface License {
@@ -84,7 +103,7 @@ export class OrganizationRepository extends RepositoryBase {
     }
   }
 
-  async getOrganizationById(id: number) {
+  async getOrganizationById({ id, withInvoice = false }: { id: number, withInvoice?: boolean }) {
     try {
       let sql = `
         SELECT o.*,
@@ -101,7 +120,18 @@ export class OrganizationRepository extends RepositoryBase {
         return this.failure('No Organization Found!')
       }
 
-      return this.success(data[0]);
+      const org = data[0];
+
+      if (withInvoice) {
+        const invRes = await new QueryBuilder('invoice_items')
+          .where('org_id = ?', id)
+          .where('status > 0')
+          .select() as InvoiceItems[];
+
+        org.invoice_data = invRes;
+      }
+
+      return this.success(org);
     } catch (error) {
       return this.handleError(error);
     }

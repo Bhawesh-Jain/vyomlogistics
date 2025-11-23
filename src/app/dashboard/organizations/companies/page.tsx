@@ -8,9 +8,10 @@ import { useGlobalDialog } from "@/providers/DialogProvider";
 import { deleteOrganization, getAllOrganizations } from "@/lib/actions/organizations";
 import { Organization } from "@/lib/repositories/organizationRepository";
 import { Button, ButtonTooltip } from "@/components/ui/button";
-import { Edit2, Trash } from "lucide-react";
+import { Box, Edit2, Trash } from "lucide-react";
 import AddOrganization from "./blocks/AddOrganization";
 import formatDate from "@/lib/utils/date";
+import ManageCompanyItem from "./blocks/ManageItem";
 
 export default function OrganizationMaster() {
   const [items, setItems] = useState<Organization[]>([])
@@ -18,6 +19,7 @@ export default function OrganizationMaster() {
   const [selected, setSelected] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(false)
+  const [formType, setFormType] = useState<'add' | 'manage'>('add')
   const { showError } = useGlobalDialog();
 
   const itemsRef = useRef<Organization[]>([]);
@@ -102,7 +104,10 @@ export default function OrganizationMaster() {
       align: 'right',
       cell: (row) => (
         <div className="flex gap-2 justify-end">
-          <ButtonTooltip title='Edit Organization' variant="ghost" size="sm" onClick={() => { setForm(true); setSelected(row) }}>
+          <ButtonTooltip title='Manage Organization' variant="ghost" size="sm" onClick={() => {setForm(true); setSelected(row); setFormType('manage'); }}>
+            <Box className="h-4 w-4 text-success" />
+          </ButtonTooltip>
+          <ButtonTooltip title='Edit Organization' variant="ghost" size="sm" onClick={() => { setForm(true); setSelected(row); setFormType('add'); }}>
             <Edit2 className="h-4 w-4" />
           </ButtonTooltip>
           <ButtonTooltip title='Delete Organization' variant="ghost" size="sm" onClick={() => deleteOrganizationFunc(row.org_id)}>
@@ -134,7 +139,10 @@ export default function OrganizationMaster() {
       <CardContent>
 
         {form
-          ? <AddOrganization setForm={() => setForm(false)} setReload={setReload} organizationId={selected?.org_id} />
+          ? <>
+            {formType === 'add'&& <AddOrganization setForm={() => setForm(false)} setReload={setReload} organizationId={selected?.org_id} />}
+            {formType === 'manage'&& <ManageCompanyItem setForm={() => setForm(false)} setReload={setReload} organizationId={selected?.org_id} />}
+          </>
           : <DataTable
             data={items}
             columns={columns}
