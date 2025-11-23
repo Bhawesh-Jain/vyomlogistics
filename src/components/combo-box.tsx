@@ -47,6 +47,7 @@ export function Combobox({
     width: 0
   });
 
+  // This is the key change - display the value itself if no option matches
   const selectedOption = options.find(opt => opt.value === value);
   const displayValue = selectedOption ? selectedOption.label : value;
 
@@ -84,6 +85,7 @@ export function Combobox({
         containerRef.current &&
         !containerRef.current.contains(event.target as Node)
       ) {
+        // Save custom value on blur if there's a search term
         if (searchTerm.trim()) {
           onChange(searchTerm.trim());
         }
@@ -158,8 +160,10 @@ export function Combobox({
         e.stopPropagation();
 
         if (filteredOptions.length > 0 && filteredOptions[highlightedIndex]) {
+          // Select from dropdown
           handleOptionSelect(filteredOptions[highlightedIndex].value);
         } else if (searchTerm.trim()) {
+          // Save custom value
           onChange(searchTerm.trim());
           setIsOpen(false);
           setSearchTerm("");
@@ -173,6 +177,7 @@ export function Combobox({
         break;
 
       case "Tab":
+        // Save custom value on Tab if there's a search term
         if (searchTerm.trim()) {
           onChange(searchTerm.trim());
         }
@@ -238,7 +243,10 @@ export function Combobox({
               filteredOptions.map((option, index) => (
                 <div
                   key={option.value}
-                  onClick={() => handleOptionSelect(option.value)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleOptionSelect(option.value);
+                  }}
                   onMouseEnter={() => setHighlightedIndex(index)}
                   className={`px-3 py-2 cursor-pointer flex items-center justify-between
                     ${index === highlightedIndex

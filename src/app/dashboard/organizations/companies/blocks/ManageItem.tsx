@@ -11,6 +11,7 @@ import { getOrganizationById, getServiceNames, saveOrganizationServices } from "
 import { InvoiceItems, Organization } from "@/lib/repositories/organizationRepository";
 import { SpinnerItem } from "@/components/ui/default-form-field";
 import Loading from "@/app/dashboard/loading";
+import formatDate from "@/lib/utils/date";
 
 // Table components
 const Table = ({ children, className = "" }: any) => (
@@ -295,7 +296,7 @@ export default function ManageCompanyItem({
         <div className="header">
           <h1>MONTHLY FEES LEDGER</h1>
           <p><strong>Period:</strong> {formatMonthYear(monthYear)}</p>
-          <p><strong>Record Date:</strong> {new Date().toLocaleDateString()}</p>
+          <p><strong>Record Date:</strong> {formatDate(new Date().toISOString())}</p>
         </div>
 
         {orgDetails && (
