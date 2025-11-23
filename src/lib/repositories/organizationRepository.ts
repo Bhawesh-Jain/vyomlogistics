@@ -3,6 +3,7 @@ import { executeQuery, QueryBuilder } from "../helpers/db-helper";
 import { RepositoryBase } from "../helpers/repository-base"
 import { LicenseFormValues } from "@/app/dashboard/organizations/licenses/blocks/AddItem";
 import { AgreementFormValues } from "@/app/dashboard/organizations/agreements/blocks/AddItem";
+import { InvoiceUiItems } from "@/app/dashboard/organizations/companies/blocks/ManageItem";
 
 export interface Organization {
   org_id: number;
@@ -11,6 +12,7 @@ export interface Organization {
   contact_number: string;
   location: string;
   pincode: string;
+  description: string;
 
   updated_by: string;
 
@@ -30,6 +32,7 @@ export interface InvoiceItems {
   service_name: string;
   amount: number;
   tax: number;
+  tax_amount: number;
   total: number;
   description: string;
 
@@ -77,9 +80,11 @@ export interface Agreement {
 }
 
 export class OrganizationRepository extends RepositoryBase {
+  private user_id: string;
 
   constructor(user_id: string) {
     super()
+    this.user_id = user_id;
   }
 
   async getAllOrganizations() {
@@ -298,26 +303,6 @@ export class OrganizationRepository extends RepositoryBase {
     }
   }
 
-  async getServiceNames() {
-    try {
-      let sql = `
-        SELECT DISTINCT service_name
-        FROM invoice_items
-        WHERE status > 0;
-      `;
-
-      const result = await executeQuery(sql) as any[]
-
-      if (result.length == 0) {
-        return this.failure('Request Failed!')
-      }
-
-      return this.success(result);
-    } catch (error) {
-      return this.handleError(error);
-    }
-  }
-
   async deleteLicense(
     licenseId: number,
     userId: string
@@ -434,7 +419,7 @@ export class OrganizationRepository extends RepositoryBase {
 
   async deleteAgreement(
     agreementId: number,
-    userId: string
+    userId: string,
   ) {
     try {
       const result = await new QueryBuilder('organization_agreements')
@@ -446,6 +431,73 @@ export class OrganizationRepository extends RepositoryBase {
 
       if (result == 0) {
         return this.failure('Request Failed!')
+      }
+
+      return this.success('Agreement Deleted Successfully');
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async getServiceNames() {
+    try {
+      let sql = `
+        SELECT DISTINCT service_name
+        FROM invoice_items
+        WHERE status > 0;
+      `;
+
+      const result = await executeQuery(sql) as any[]
+
+      if (result.length == 0) {
+        return this.failure('Request Failed!')
+      }
+      
+      return this.success(result);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async saveOrganizationServices(
+    orgId: number,
+    services: InvoiceUiItems[],
+    notes?: string
+  ) {
+    try {
+      const orgRes = await this.getOrganizationById({ id: orgId });
+
+      if (!orgRes.success) {
+        return orgRes;
+      }
+
+      await new QueryBuilder('invoice_items')
+        .where('org_id = ?', orgId)
+        .update({
+          'status': -1,
+          'updated_by': this.user_id
+        });
+
+      for (let i = 0; i < services.length; i++) {
+        const service = services[i];
+
+        await new QueryBuilder('invoice_items')
+          .insert({
+            status: 1,
+            org_id: orgId,
+            updated_by: this.user_id,
+            total: Number(service.amount) + Number(service.tax_amount),
+            ...service
+          })
+      }
+
+      if (notes && notes.length > 0) {
+        await new QueryBuilder('organizations')
+          .where('org_id = ?', orgId)
+          .update({
+            'description': notes,
+            'updated_by': this.user_id
+          });
       }
 
       return this.success('Agreement Deleted Successfully');

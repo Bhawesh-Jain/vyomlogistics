@@ -7,9 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building2, FileText, Plus, Trash2, Printer, DollarSign, Check, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Combobox } from "@/components/combo-box";
-import { getOrganizationById, getServiceNames } from "@/lib/actions/organizations";
-import { Organization } from "@/lib/repositories/organizationRepository";
+import { getOrganizationById, getServiceNames, saveOrganizationServices } from "@/lib/actions/organizations";
+import { InvoiceItems, Organization } from "@/lib/repositories/organizationRepository";
 import { SpinnerItem } from "@/components/ui/default-form-field";
+import Loading from "@/app/dashboard/loading";
 
 // Table components
 const Table = ({ children, className = "" }: any) => (
@@ -30,7 +31,7 @@ const TableCell = ({ children, className = "" }: any) => (
   <td className={`px-4 py-3 ${className}`}>{children}</td>
 );
 
-interface InvoiceUiItems {
+export interface InvoiceUiItems {
   service_name: string,
   description: string,
   amount: string | number
@@ -67,9 +68,9 @@ export default function ManageCompanyItem({
           const serviceRes = await getServiceNames();
 
           if (serviceRes.success) {
-            const formattedData: SpinnerItem[] = serviceRes.result.map((item: string) => ({
-              label: item,
-              value: item,
+            const formattedData: SpinnerItem[] = serviceRes.result.map((item: any) => ({
+              label: item.service_name,
+              value: item.service_name,
             }));
 
             setServices(formattedData);
@@ -77,7 +78,21 @@ export default function ManageCompanyItem({
 
           const details = await getOrganizationById({ id: organizationId, withInvoice: true });
           if (details.success) {
-            setOrgDetails(details.result);
+            const org: Organization = details.result;
+            setOrgDetails(org);
+            setNotes(org.description);
+
+            if (org.invoice_data && org.invoice_data?.length > 0) {
+              const formattedData: InvoiceUiItems[] = org.invoice_data.map((item: InvoiceItems) => ({
+                amount: item.amount,
+                description: item.description,
+                service_name: item.service_name,
+                tax: item.tax,
+                tax_amount: item.tax_amount
+              }));
+
+              setServiceItems(formattedData);
+            }
           }
         } catch (error: any) {
           toast({
@@ -206,6 +221,14 @@ export default function ManageCompanyItem({
   }, [serviceItems]);
 
   const handleSave = async () => {
+    if (!organizationId) {
+      toast({
+        title: "Validation Error",
+        description: "Something went wrong. Please cancel and try again!",
+        variant: "destructive"
+      });
+      return;
+    }
     if (!serviceItems.some(item => item.service_name)) {
       toast({
         title: "Validation Error",
@@ -217,23 +240,25 @@ export default function ManageCompanyItem({
 
     setLoading(true);
     try {
-      const payload = {
-        organization_id: organizationId,
-        month_year: monthYear,
-        services: serviceItems.filter(item => item.service_name),
-        notes: notes
-      };
+      const services = serviceItems.filter(item => item.service_name);
 
-      console.log('Saving monthly fees:', payload);
-      await new Promise(resolve => setTimeout(resolve, 1000));
 
-      toast({
-        title: "Success",
-        description: "Monthly fees record saved successfully!",
-      });
+      const res = await saveOrganizationServices(organizationId, services, notes);
 
-      setForm(false);
-      setReload(true);
+      if (res.success) {
+        toast({
+          title: "Success",
+          description: res.result,
+        });
+
+        setForm(false);
+        setReload(true);
+      } else {
+        toast({
+          title: "Error",
+          description: res.error,
+        });
+      }
     } catch (error: any) {
       toast({
         title: "Error",
@@ -253,6 +278,14 @@ export default function ManageCompanyItem({
         </CardContent>
       </Card>
     );
+  }
+
+  if (dataLoading || loading) {
+    return (
+      <div>
+        <Loading />
+      </div>
+    )
   }
 
   return (
