@@ -25,7 +25,7 @@ export interface Folder {
   updated_on: string;
 
   sub_folders: Folder[]
-  
+
   permissions?: FolderPermissions;
 
   files: DataFile[];
@@ -51,11 +51,14 @@ export interface DataFile {
 }
 
 export class DataRepository extends RepositoryBase {
+  private userId: string;
+
   constructor(userId: string) {
     super();
+    this.userId = userId;
   }
 
-  async getFolderList() {
+  async getFolderList(flat: boolean = false) {
     try {
       const sql = `
       SELECT df.*,
@@ -73,6 +76,9 @@ export class DataRepository extends RepositoryBase {
       if (flatFolders.length === 0) {
         return this.failure("No Folders Found!");
       }
+      if (flat) {
+        return this.success(flatFolders);
+      }
 
       const folderMap = new Map<number, Folder>();
 
@@ -89,7 +95,7 @@ export class DataRepository extends RepositoryBase {
             parent.sub_folders!.push(folder);
           }
         } else {
-          rootFolders.push(folder); 
+          rootFolders.push(folder);
         }
       });
 
@@ -111,17 +117,34 @@ export class DataRepository extends RepositoryBase {
 
         folder.files = files as DataFile[];
 
-        folder.permissions = {
-          can_create_subfolder: true,
-          can_delete: true,
-          can_download_file: true,
-          can_rename: true,
-          can_upload_file: true,
+        let permissions = await new QueryBuilder('folder_permissions')
+          .where('folder_id = ?', folder.folder_id)
+          .where('user_id = ?', this.userId)
+          .selectOne(['permission_array']) as FolderPermissions;
+
+        if (permissions == null) {
+          if (this.userId == '501' || this.userId == '502') {
+            permissions = {
+              can_create_subfolder: true,
+              can_upload_file: true,
+              can_download_file: true,
+              can_rename: true,
+              can_delete: true,
+            };
+          } else {
+            permissions = {
+              can_create_subfolder: false,
+              can_upload_file: false,
+              can_download_file: false,
+              can_rename: false,
+              can_delete: false,
+            };
+          }
         }
+
+        folder.permissions = permissions;
       }
 
-      customLog(rootFolders);
-      
       return this.success(rootFolders);
     } catch (error) {
       return this.handleError(error);

@@ -19,7 +19,8 @@ import {
   X,
   Home,
   Users,
-  Key
+  Key,
+  Menu
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -32,6 +33,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 import { getFolderList, uploadDataFile, getFolderById } from "@/lib/actions/data-bank";
 import { DataFile, Folder } from "@/lib/repositories/dataRepository";
@@ -57,9 +59,10 @@ export default function DataBankModern() {
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeView, setActiveView] = useState<ActiveView>("files");
-  const [parentFolderId, setParentFolderId] = useState<number | undefined>(undefined);
+  const [parentFolderId, setParentFolderId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [sortBy, setSortBy] = useState<SortBy>("date");
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const [uploadingFor, setUploadingFor] = useState<number | null>(null);
   const [dragOverFolder, setDragOverFolder] = useState<number | null>(null);
@@ -107,6 +110,7 @@ export default function DataBankModern() {
   const selectFolder = useCallback(async (id: number) => {
     setSelectedFolderId(id);
     setActiveView("files");
+    setMobileSidebarOpen(false);
 
     const cachedFolder = folderCache[id];
     if (cachedFolder && cachedFolder.files && cachedFolder.files.length > 0) {
@@ -279,6 +283,11 @@ export default function DataBankModern() {
 
   const handleAddSubfolder = useCallback((folderId: number) => {
     setParentFolderId(folderId);
+    setActiveView("add-folder");
+  }, []);
+
+  const handleAddRootFolder = useCallback(() => {
+    setParentFolderId(null);
     setActiveView("add-folder");
   }, []);
 
@@ -519,34 +528,36 @@ export default function DataBankModern() {
           onDragOver={(e) => handleDragOver(e, selectedFolder!.folder_id)}
           onDragLeave={handleDragLeave}
           onDrop={(e) => handleDrop(e, selectedFolder!.folder_id)}
-          className={`rounded-xl border-2 border-dashed p-8 mb-6 text-center transition-all ${dragOverFolder === selectedFolder!.folder_id
+          className={`rounded-xl border-2 border-dashed p-4 md:p-8 mb-6 text-center transition-all ${dragOverFolder === selectedFolder!.folder_id
             ? "border-blue-400 bg-blue-25 border-solid"
             : "border-gray-300 hover:border-gray-400"
             }`}
         >
-          <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Drop files here</h3>
-          <p className="text-gray-500 mb-4">
+          <Upload className="w-8 h-8 md:w-12 md:h-12 text-gray-400 mx-auto mb-3 md:mb-4" />
+          <h3 className="text-base md:text-lg font-semibold mb-2">Drop files here</h3>
+          <p className="text-gray-500 text-sm md:text-base mb-4">
             Upload Excel or CSV files up to 10MB
           </p>
           <Button
             onClick={() => openFileInput(selectedFolder!.folder_id)}
             variant="outline"
+            size="sm"
+            className="text-sm"
           >
             Select Files
           </Button>
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold">Files ({filteredFiles.length})</h3>
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <h3 className="font-semibold text-lg">Files ({filteredFiles.length})</h3>
+        <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
             <Button
               variant={viewMode === "grid" ? "default" : "ghost"}
               size="sm"
               onClick={() => setViewMode("grid")}
-              className="h-8 px-3"
+              className="h-8 px-2 sm:px-3"
             >
               <Grid3X3 className="w-4 h-4" />
             </Button>
@@ -554,7 +565,7 @@ export default function DataBankModern() {
               variant={viewMode === "list" ? "default" : "ghost"}
               size="sm"
               onClick={() => setViewMode("list")}
-              className="h-8 px-3"
+              className="h-8 px-2 sm:px-3"
             >
               <List className="w-4 h-4" />
             </Button>
@@ -562,9 +573,9 @@ export default function DataBankModern() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
+              <Button variant="outline" size="sm" className="gap-2 text-sm">
                 <SortAsc className="w-4 h-4" />
-                Sort
+                <span className="hidden sm:inline">Sort</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -583,21 +594,25 @@ export default function DataBankModern() {
       </div>
 
       {filteredFiles.length === 0 ? (
-        <div className="text-center py-12">
-          <FileIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No files found</h3>
-          <p className="text-gray-500 mb-4">
+        <div className="text-center py-8 md:py-12">
+          <FileIcon className="w-12 h-12 md:w-16 md:h-16 text-gray-300 mx-auto mb-3 md:mb-4" />
+          <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-2">No files found</h3>
+          <p className="text-gray-500 text-sm md:text-base mb-4">
             {searchTerm ? "Try adjusting your search" : "Get started by uploading your first file"}
           </p>
           {canUploadToSelected && (
-            <Button onClick={() => openFileInput(selectedFolder!.folder_id)}>
+            <Button 
+              onClick={() => openFileInput(selectedFolder!.folder_id)} 
+              size="sm"
+              className="text-sm"
+            >
               <Upload className="w-4 h-4 mr-2" />
               Upload File
             </Button>
           )}
         </div>
       ) : viewMode === "grid" ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
           {filteredFiles.map((file, index) => (
             <FileCard
               key={file.identifier}
@@ -630,21 +645,30 @@ export default function DataBankModern() {
 
     if (allItems.length === 0) {
       return (
-        <div className="text-center py-12">
-          <FolderIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Empty folder</h3>
-          <p className="text-gray-500 mb-4">
+        <div className="text-center py-8 md:py-12">
+          <FolderIcon className="w-12 h-12 md:w-16 md:h-16 text-gray-300 mx-auto mb-3 md:mb-4" />
+          <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-2">Empty folder</h3>
+          <p className="text-gray-500 text-sm md:text-base mb-4">
             This folder doesn't contain any files or subfolders
           </p>
-          <div className="flex gap-2 justify-center">
+          <div className="flex flex-col sm:flex-row gap-2 justify-center">
             {selectedFolder?.permissions?.can_create_subfolder && (
-              <Button onClick={() => handleAddSubfolder(selectedFolder.folder_id)}>
+              <Button 
+                onClick={() => handleAddSubfolder(selectedFolder.folder_id)} 
+                size="sm"
+                className="text-sm"
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Subfolder
               </Button>
             )}
             {canUploadToSelected && (
-              <Button onClick={() => openFileInput(selectedFolder!.folder_id)} variant="outline">
+              <Button 
+                onClick={() => openFileInput(selectedFolder!.folder_id)} 
+                variant="outline" 
+                size="sm"
+                className="text-sm"
+              >
                 <Upload className="w-4 h-4 mr-2" />
                 Upload File
               </Button>
@@ -662,24 +686,24 @@ export default function DataBankModern() {
             return (
               <div
                 key={`folder-${folder.folder_id}`}
-                className="flex items-center gap-4 p-3 rounded-lg border hover:bg-gray-50 group transition-colors cursor-pointer"
+                className="flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50 group transition-colors cursor-pointer"
                 onClick={() => selectFolder(folder.folder_id)}
               >
-                <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
-                  <FolderIcon className="w-5 h-5" />
+                <div className="p-2 bg-blue-100 rounded-lg text-blue-600 flex-shrink-0">
+                  <FolderIcon className="w-4 h-4 md:w-5 md:h-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-1">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mb-1">
                     <h4 className="font-semibold text-sm truncate">{folder.folder_name.replace(/_/g, " ")}</h4>
-                    <Badge variant="outline" className="text-xs">Folder</Badge>
+                    <Badge variant="outline" className="text-xs w-fit">Folder</Badge>
                   </div>
-                  <div className="flex items-center gap-4 text-xs text-gray-500">
-                    <span>{folder.org_name || folder.company_name || ""}</span>
-                    <span>•</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs text-gray-500">
+                    <span className="truncate">{folder.org_name || folder.company_name || ""}</span>
+                    <span className="hidden sm:inline">•</span>
                     <span>{folder.files.length} files</span>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <ChevronRight className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
               </div>
             );
           } else {
@@ -699,77 +723,97 @@ export default function DataBankModern() {
     );
   };
 
+  const SidebarContent = () => (
+    <Card className="w-full h-full flex flex-col">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg">Folders</CardTitle>
+        <div className="relative mt-2">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Input
+            placeholder="Search folders..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 pr-4"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm("")}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2"
+            >
+              <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+            </button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="p-0 flex-1 overflow-hidden">
+        <div className="h-full overflow-auto px-3 pb-3">
+          {filteredFolders.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <FolderIcon className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+              <p>No folders found</p>
+            </div>
+          ) : (
+            <div>
+              {filteredFolders.map((f) => (
+                <TreeItem key={f.folder_id} folder={f} />
+              ))}
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <TooltipProvider>
-      <Container className="py-6">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Data Bank</h1>
-            <p className="text-gray-600 mt-2">Manage and organize your data files</p>
+      <Container className="py-4 md:py-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Data Bank</h1>
+              <p className="text-gray-600 mt-1 md:mt-2 text-sm md:text-base">Manage and organize your data files</p>
+            </div>
           </div>
+            <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+              <SheetTrigger asChild className="lg:hidden">
+                <Button variant="outline" size="sm">
+                  <Menu className="w-4 h-4" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-80 p-0">
+                <SidebarContent />
+              </SheetContent>
+            </Sheet>
           <Button
-            onClick={() => { setParentFolderId(undefined); setActiveView("add-folder"); }}
-            className="bg-blue-600 hover:bg-blue-700"
+            onClick={handleAddRootFolder}
+            className="bg-blue-600 hover:bg-blue-700 text-sm"
+            size="sm"
           >
-            <Plus className="w-4 h-4 mr-2" />
-            New Folder
+            <Plus className="w-4 h-4 md:mr-2" />
+            <span className="hidden sm:inline">New Folder</span>
           </Button>
         </div>
 
-        <div className="flex gap-6 h-[calc(100vh-200px)]">
-          <Card className="w-80 flex-shrink-0">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Folders</CardTitle>
-              <div className="relative mt-2">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  placeholder="Search folders..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4"
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => setSearchTerm("")}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2"
-                  >
-                    <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
-                  </button>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="h-[400px] overflow-auto px-3 pb-3">
-                {filteredFolders.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <FolderIcon className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                    <p>No folders found</p>
-                  </div>
-                ) : (
-                  <div>
-                    {filteredFolders.map((f) => (
-                      <TreeItem key={f.folder_id} folder={f} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+        <div className="flex gap-4 md:gap-6 h-[calc(100vh-180px)] md:h-[calc(100vh-200px)]">
+          {/* Desktop Sidebar */}
+          <div className="hidden lg:block w-80 flex-shrink-0">
+            <SidebarContent />
+          </div>
 
           <div className="flex-1 flex flex-col min-w-0">
             {selectedFolder ? (
               <>
-                <Card className="mb-6">
-                  <CardContent className="pt-6">
+                <Card className="mb-4 md:mb-6">
+                  <CardContent className="pt-4 md:pt-6">
                     <Breadcrumb>
-                      <BreadcrumbList>
+                      <BreadcrumbList className="flex-wrap">
                         <BreadcrumbItem>
                           <BreadcrumbLink
                             href="#"
                             onClick={() => setSelectedFolderId(null)}
-                            className="flex items-center gap-2"
+                            className="flex items-center gap-2 text-sm"
                           >
-                            <Home className="w-4 h-4" />
+                            <Home className="w-3 h-3 md:w-4 md:h-4" />
                             Root
                           </BreadcrumbLink>
                         </BreadcrumbItem>
@@ -778,14 +822,14 @@ export default function DataBankModern() {
                             <BreadcrumbSeparator />
                             <BreadcrumbItem>
                               {index === breadcrumbPath.length - 1 ? (
-                                <span className="font-medium text-gray-900">
+                                <span className="font-medium text-gray-900 text-sm">
                                   {folder.folder_name.replace(/_/g, " ")}
                                 </span>
                               ) : (
                                 <BreadcrumbLink
                                   href="#"
                                   onClick={() => selectFolder(folder.folder_id)}
-                                  className="text-gray-600 hover:text-gray-900"
+                                  className="text-gray-600 hover:text-gray-900 text-sm"
                                 >
                                   {folder.folder_name.replace(/_/g, " ")}
                                 </BreadcrumbLink>
@@ -798,28 +842,28 @@ export default function DataBankModern() {
                   </CardContent>
                 </Card>
 
-                <Card className="mb-6">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="p-3 rounded-xl bg-blue-100 text-blue-600">
-                          <FolderIcon className="w-6 h-6" />
+                <Card className="mb-4 md:mb-6">
+                  <CardHeader className="pb-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-3 md:gap-4">
+                        <div className="p-2 md:p-3 rounded-lg md:rounded-xl bg-blue-100 text-blue-600">
+                          <FolderIcon className="w-4 h-4 md:w-6 md:h-6" />
                         </div>
-                        <div>
-                          <CardTitle className="text-xl flex items-center gap-3">
-                            {selectedFolder.folder_name.replace(/_/g, " ")}
-                            <Badge variant="secondary" className="ml-2">
+                        <div className="min-w-0">
+                          <CardTitle className="text-lg md:text-xl flex flex-col sm:flex-row sm:items-center gap-2">
+                            <span className="truncate">{selectedFolder.folder_name.replace(/_/g, " ")}</span>
+                            <Badge variant="secondary" className="w-fit text-xs">
                               {selectedFolder.files.length} files
                               {selectedFolder.sub_folders && selectedFolder.sub_folders.length > 0 &&
                                 `, ${selectedFolder.sub_folders.length} subfolders`
                               }
                             </Badge>
                           </CardTitle>
-                          <CardDescription className="flex items-center gap-2 mt-1">
-                            {selectedFolder.org_name || selectedFolder.company_name}
+                          <CardDescription className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mt-1 text-xs md:text-sm">
+                            <span>{selectedFolder.org_name || selectedFolder.company_name}</span>
                             {latestFile && (
                               <>
-                                <span>•</span>
+                                <span className="hidden sm:inline">•</span>
                                 <span>Last updated {formatDateTime(latestFile.created_on)}</span>
                               </>
                             )}
@@ -827,17 +871,18 @@ export default function DataBankModern() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         {canUploadToSelected && (
                           <Button
                             onClick={() => openFileInput(selectedFolder.folder_id)}
                             disabled={uploadingFor === selectedFolder.folder_id}
-                            className="bg-blue-600 hover:bg-blue-700"
+                            className="bg-blue-600 hover:bg-blue-700 text-sm"
+                            size="sm"
                           >
                             {uploadingFor === selectedFolder.folder_id ? (
-                              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                              <Loader2 className="w-3 h-3 md:w-4 md:h-4 animate-spin mr-1 md:mr-2" />
                             ) : (
-                              <Upload className="w-4 h-4 mr-2" />
+                              <Upload className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
                             )}
                             Upload
                           </Button>
@@ -846,14 +891,16 @@ export default function DataBankModern() {
                         <Button
                           variant="outline"
                           onClick={() => handleOpenPermissions(selectedFolder.folder_id)}
+                          size="sm"
+                          className="text-sm"
                         >
-                          <Users className="w-4 h-4 mr-2" />
+                          <Users className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
                           Permissions
                         </Button>
 
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="icon">
+                            <Button variant="outline" size="sm" className="px-2">
                               <MoreVertical className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -877,30 +924,30 @@ export default function DataBankModern() {
 
                 <Card className="flex-1">
                   <Tabs value={activeView} onValueChange={(v) => setActiveView(v as ActiveView)}>
-                    <TabsList className="m-3">
-                      <TabsTrigger value="files">
-                        <FileIcon className="w-4 h-4 mr-2" />
+                    <TabsList className="m-2 md:m-3 flex-wrap">
+                      <TabsTrigger value="files" className="text-xs md:text-sm">
+                        <FileIcon className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
                         All Content
                       </TabsTrigger>
-                      <TabsTrigger value="add-folder">
-                        <Plus className="w-4 h-4 mr-2" />
+                      <TabsTrigger value="add-folder" className="text-xs md:text-sm">
+                        <Plus className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
                         Add Folder
                       </TabsTrigger>
                     </TabsList>
 
-                    <TabsContent value="files" className="mt-0 mx-3 max-h-96 overflow-auto">
+                    <TabsContent value="files" className="mt-0 mb-2 md:mb-3 mx-2 md:mx-3 max-h-96 overflow-auto">
                       {renderContentItems()}
                     </TabsContent>
 
-                    <TabsContent value="add-folder" className="mt-0 mx-3">
+                    <TabsContent value="add-folder" className="mt-0 mb-2 md:mb-3 mx-2 md:mx-3 overflow-auto">
                       <AddFolder
                         setForm={() => {
                           setActiveView("files");
-                          setParentFolderId(undefined);
+                          setParentFolderId(null);
                           loadFolders();
                         }}
                         setReload={loadFolders}
-                        folderId={parentFolderId || selectedFolder.folder_id}
+                        folderId={parentFolderId}
                       />
                     </TabsContent>
 
@@ -916,13 +963,13 @@ export default function DataBankModern() {
               </>
             ) : (
               <Card className="flex-1 flex items-center justify-center">
-                <CardContent className="text-center py-16">
-                  <FolderIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <CardContent className="text-center py-12 md:py-16">
+                  <FolderIcon className="w-12 h-12 md:w-16 md:h-16 text-gray-300 mx-auto mb-3 md:mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">No folder selected</h3>
-                  <p className="text-gray-500 mb-6">
+                  <p className="text-gray-500 mb-6 text-sm md:text-base">
                     Choose a folder from the sidebar to view its contents
                   </p>
-                  <Button onClick={() => setActiveView("add-folder")}>
+                  <Button onClick={handleAddRootFolder} size="sm">
                     <Plus className="w-4 h-4 mr-2" />
                     Create Folder
                   </Button>
@@ -937,21 +984,21 @@ export default function DataBankModern() {
 }
 
 const FileCard = ({ file, version, canDownload }: { file: DataFile; version: number; canDownload: boolean }) => (
-  <Card className="p-4 hover:shadow-md transition-shadow group">
-    <div className="flex items-start justify-between mb-3">
-      <div className="p-2 bg-gray-100 rounded-lg">
-        <FileIcon className="w-5 h-5 text-gray-600" />
+  <Card className="p-3 md:p-4 hover:shadow-md transition-shadow group">
+    <div className="flex items-start justify-between mb-2 md:mb-3">
+      <div className="p-1 md:p-2 bg-gray-100 rounded-lg">
+        <FileIcon className="w-4 h-4 md:w-5 md:h-5 text-gray-600" />
       </div>
       {canDownload && (
-        <Button variant="ghost" size="sm" asChild className="opacity-0 group-hover:opacity-100 transition-opacity">
+        <Button variant="ghost" size="sm" asChild className="opacity-0 group-hover:opacity-100 transition-opacity p-1 md:p-2">
           <a href={`/api/uploads/${encodeURIComponent(file.identifier)}/download`} download>
-            <Download className="w-4 h-4" />
+            <Download className="w-3 h-3 md:w-4 md:h-4" />
           </a>
         </Button>
       )}
     </div>
 
-    <h4 className="font-semibold text-sm mb-2 truncate">{file.file_name}</h4>
+    <h4 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 truncate">{file.file_name}</h4>
     <div className="space-y-1 text-xs text-gray-500">
       <div>Version #{version}</div>
       <div>{formatDateTime(file.created_on)}</div>
@@ -961,26 +1008,27 @@ const FileCard = ({ file, version, canDownload }: { file: DataFile; version: num
 );
 
 const FileRow = ({ file, version, canDownload }: { file: DataFile; version: number; canDownload: boolean }) => (
-  <div className="flex items-center gap-4 p-3 rounded-lg border hover:bg-gray-50 group transition-colors">
-    <div className="p-2 bg-gray-100 rounded-lg">
-      <FileIcon className="w-5 h-5 text-gray-600" />
+  <div className="flex items-center gap-3 p-2 md:p-3 rounded-lg border hover:bg-gray-50 group transition-colors">
+    <div className="p-1 md:p-2 bg-gray-100 rounded-lg flex-shrink-0">
+      <FileIcon className="w-4 h-4 md:w-5 md:h-5 text-gray-600" />
     </div>
 
     <div className="flex-1 min-w-0">
-      <div className="flex items-center gap-3 mb-1">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mb-1">
         <h4 className="font-semibold text-sm truncate">{file.file_name}</h4>
-        <Badge variant="outline" className="text-xs">v{version}</Badge>
+        <Badge variant="outline" className="text-xs w-fit">v{version}</Badge>
       </div>
-      <div className="flex items-center gap-4 text-xs text-gray-500">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs text-gray-500">
         <span>{formatDateTime(file.created_on)}</span>
+        <span className="hidden sm:inline">•</span>
         <span>{formatFileSize(file.file_size)}</span>
       </div>
     </div>
 
     {canDownload && (
-      <Button variant="ghost" size="sm" asChild className="opacity-0 group-hover:opacity-100 transition-opacity">
+      <Button variant="ghost" size="sm" asChild className="opacity-0 group-hover:opacity-100 transition-opacity p-1 md:p-2 flex-shrink-0">
         <a href={`/api/uploads/${encodeURIComponent(file.identifier)}/download`} download>
-          <Download className="w-4 h-4" />
+          <Download className="w-3 h-3 md:w-4 md:h-4" />
         </a>
       </Button>
     )}

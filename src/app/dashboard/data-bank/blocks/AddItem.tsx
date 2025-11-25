@@ -14,12 +14,13 @@ import { FileCheck, Building2, Calendar } from "lucide-react";
 import { getAllOrganizations } from "@/lib/actions/organizations";
 import { Folder } from "@/lib/repositories/dataRepository";
 import { Organization } from "@/lib/repositories/organizationRepository";
-import { addFolder, getFolderById, updateFolder } from "@/lib/actions/data-bank";
+import { addFolder, getFolderById, getFolderList, updateFolder } from "@/lib/actions/data-bank";
 import { FileTransfer } from "@/lib/helpers/file-helper";
 
 const formSchema = z.object({
   org_id: z.string().min(1, 'Select organization'),
   folder_name: z.string().min(1, 'Enter folder name'),
+  parent_id: z.string().optional(),
   status: z.enum(['1', '0']).default('1')
 });
 
@@ -37,6 +38,7 @@ export default function AddFolder({
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(false);
   const [folderData, setFolderData] = useState<Folder | null>(null);
+  const [folders, setFolders] = useState<Folder[]>([]);
   const [organizationsData, setOrganizationsData] = useState<Organization[]>([]);
   const { toast } = useToast();
 
@@ -52,7 +54,19 @@ export default function AddFolder({
 
   useEffect(() => {
     (async () => {
+      const folderRes = await getFolderList(true);
       const organizations = await getAllOrganizations();
+
+      if (folderRes.success) {
+        const formattedData = folderRes.result
+          .filter((item: Folder) => item.folder_id !== folderId)
+          .map((item: Folder) => ({
+            label: item.folder_name,
+            value: item.folder_id.toString(),
+          }));
+
+        setFolders(formattedData);
+      }
 
       if (organizations.success) {
         const formattedData = organizations.result.map((item: Organization) => ({
@@ -76,6 +90,7 @@ export default function AddFolder({
             form.reset({
               org_id: folder.org_id?.toString() ?? '',
               folder_name: folder.folder_name ?? '',
+              parent_id: String(folder.parent_id) ?? '',
               status: folder.status?.toString() ?? '1'
             });
           } else {
@@ -165,6 +180,13 @@ export default function AddFolder({
                 </CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <DefaultFormSelect
+                  form={form}
+                  name="parent_id"
+                  label="Parent Folder"
+                  placeholder="Choose a parent folder"
+                  options={folders}
+                />
                 <DefaultFormTextField
                   form={form}
                   name="folder_name"

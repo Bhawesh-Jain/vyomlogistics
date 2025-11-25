@@ -6,11 +6,11 @@ import { getSession } from "../session";
 import { FileTransfer } from "../helpers/file-helper";
 import { File } from "fetch-blob/file.js";
 
-export async function getFolderList() {
+export async function getFolderList(flat: boolean = false) {
   const session = await getSession();
 
   const dataRepository = new DataRepository(session.user_id);
-  return await dataRepository.getFolderList();
+  return await dataRepository.getFolderList(flat);
 }
 
 export async function getFolderById(folderId: number) {

@@ -132,12 +132,14 @@ export function DefaultFormSelect({
   placeholder = '',
   options,
   form,
+  disabled = false,
 }: {
   label: string,
   name: string,
   options: any[],
   placeholder?: string,
   form: any,
+  disabled?: boolean
 }) {
   return (
     <FormField
@@ -151,6 +153,7 @@ export function DefaultFormSelect({
               onValueChange={field.onChange}
               value={String(field.value)}
               defaultValue={String(field.value)}
+              disabled={disabled}
               form={form}
             >
               <SelectTrigger>

@@ -14,9 +14,11 @@ import { Warehouse, MapPin, DollarSign, Ruler } from "lucide-react";
 import { addGodown, updateGodown, getGodownById } from "@/lib/actions/warehouse";
 import { getAllOrganizations } from "@/lib/actions/organizations";
 import { Organization } from "@/lib/repositories/organizationRepository";
+import { Company } from "@/lib/repositories/companyRepository";
+import { getAllCompanies } from "@/lib/actions/settings";
 
 const formSchema = z.object({
-  org_id: z.string().min(1, 'Select organization'),
+  company_id: z.string().min(1, 'Select company'),
   godown_name: z.string().min(1, 'Enter godown name'),
   location: z.string().min(1, 'Enter location'),
   pincode: z.string().min(1, 'Enter pincode'),
@@ -42,13 +44,13 @@ export default function AddGodown({
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(false);
   const [godownData, setGodownData] = useState<any>(null);
-  const [organizationsData, setOrganizationsData] = useState<Organization[]>([]);
+  const [companiesData, setCompaniesData] = useState<Company[]>([]);
   const { toast } = useToast();
 
   const form = useForm<GodownFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      org_id: '',
+      company_id: '',
       godown_name: '',
       location: '',
       pincode: '',
@@ -63,13 +65,13 @@ export default function AddGodown({
 
   useEffect(() => {
     (async () => {
-      const organizations = await getAllOrganizations();
+      const organizations = await getAllCompanies();
       if (organizations.success) {
-        const formattedData = organizations.result.map((item: Organization) => ({
-          label: item.org_name,
-          value: item.org_id.toString(),
+        const formattedData = organizations.result.map((item: Company) => ({
+          label: item.company_name,
+          value: item.company_id.toString(),
         }));
-        setOrganizationsData(formattedData);
+        setCompaniesData(formattedData);
       }
     })();
 
@@ -83,7 +85,7 @@ export default function AddGodown({
             setGodownData(godown);
 
             form.reset({
-              org_id: godown.org_id?.toString() ?? '',
+              company_id: godown.company_id?.toString() ?? '',
               godown_name: godown.godown_name ?? '',
               location: godown.location ?? '',
               pincode: godown.pincode ?? '',
@@ -164,10 +166,10 @@ export default function AddGodown({
               <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <DefaultFormSelect
                   form={form}
-                  name="org_id"
-                  label="Organization"
-                  placeholder="Select organization"
-                  options={organizationsData}
+                  name="company_id"
+                  label="Company"
+                  placeholder="Select company"
+                  options={companiesData}
                 />
                 <DefaultFormTextField
                   form={form}
