@@ -1,3 +1,4 @@
+import { GodownFormValues } from "@/app/dashboard/godown/blocks/AddItem";
 import { executeQuery, QueryBuilder, withTransaction } from "../helpers/db-helper";
 import { RepositoryBase } from "../helpers/repository-base"
 import mysql from 'mysql2/promise';
@@ -143,20 +144,11 @@ export class WarehouseRepository extends RepositoryBase {
     }
   }
 
-  async addGodown(data: any, userId: string) {
+  async addGodown(data: GodownFormValues, userId: string) {
     try {
       const result = await new QueryBuilder('godowns')
         .insert({
-          org_id: parseInt(data.org_id),
-          godown_name: data.godown_name,
-          location: data.location,
-          pincode: data.pincode,
-          total_capacity: parseFloat(data.total_capacity),
-          capacity_unit: data.capacity_unit,
-          monthly_rent: parseFloat(data.monthly_rent),
-          currency: data.currency,
-          description: data.description,
-          is_active: data.is_active === '1' ? 1 : 0,
+          ...data,
           updated_by: userId
         });
 

@@ -3,6 +3,7 @@
 import { WarehouseRepository } from "../repositories/warehouseRepository";
 import { getSession } from "../session";
 import { SpaceAllocationData } from "../repositories/warehouseRepository";
+import { GodownFormValues } from "@/app/dashboard/godown/blocks/AddItem";
 
 export async function getAllGodowns(orgId?: number) {
   const session = await getSession();
@@ -16,7 +17,7 @@ export async function getGodownById(id: number) {
   return await repository.getGodownById(id);
 }
 
-export async function addGodown(data: any) {
+export async function addGodown(data: GodownFormValues) {
   const session = await getSession();
   const repository = new WarehouseRepository(session.user_id);
   return await repository.addGodown(data, session.user_id);
