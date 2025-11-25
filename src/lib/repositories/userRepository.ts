@@ -43,6 +43,21 @@ export class UserRepository extends RepositoryBase {
     }
   }
 
+  async getEmployeeList() {
+    try {
+      var user = await new QueryBuilder('users')
+        .where(`role not in (1,2)`)
+        .select(['*']);
+
+      if (user && user.length > 0) {
+        return this.success(user)
+      }
+      return this.failure('No User Found!')
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
   async updateUserBank(
     user_id: string,
     name: string,

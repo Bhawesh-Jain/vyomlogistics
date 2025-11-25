@@ -15,9 +15,11 @@ import {
   MoreVertical,
   Grid3X3,
   List,
-  Filter,
   SortAsc,
-  X
+  X,
+  Home,
+  Users,
+  Key
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -29,6 +31,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 
 import { getFolderList, uploadDataFile, getFolderById } from "@/lib/actions/data-bank";
 import { DataFile, Folder } from "@/lib/repositories/dataRepository";
@@ -37,38 +40,27 @@ import { formatDateTime } from "@/lib/utils/date";
 import { formatFileSize } from "@/lib/utils";
 import AddFolder from "./blocks/AddItem";
 import { useGlobalDialog } from "@/providers/DialogProvider";
-
-/**
- * DataBankModern - Redesigned with modern UI/UX patterns
- */
-
-/* ----------------------------- Types & Constants ----------------------------- */
+import FolderPermissions from "./blocks/FolderPermissions";
+import { ScrollBar } from "@/components/ui/scroll-area";
 
 type ExpandMap = Record<number, boolean>;
 type ViewMode = "grid" | "list";
 type SortBy = "name" | "date" | "size";
-
-/* ----------------------------- Styling Helpers ----------------------------- */
-
-const indentStyle = (depth: number) => ({ paddingLeft: `${depth * 20}px` });
-
-/* ----------------------------- Component ----------------------------- */
+type ActiveView = "files" | "add-folder" | "permissions";
 
 export default function DataBankModern() {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(true);
   const [folderCache, setFolderCache] = useState<Record<number, Folder>>({});
 
-  // UI state
   const [expanded, setExpanded] = useState<ExpandMap>({});
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [formOpen, setFormOpen] = useState(false);
+  const [activeView, setActiveView] = useState<ActiveView>("files");
   const [parentFolderId, setParentFolderId] = useState<number | undefined>(undefined);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [sortBy, setSortBy] = useState<SortBy>("date");
 
-  // Upload/drag state
   const [uploadingFor, setUploadingFor] = useState<number | null>(null);
   const [dragOverFolder, setDragOverFolder] = useState<number | null>(null);
   const [refreshingFolder, setRefreshingFolder] = useState<number | null>(null);
@@ -77,15 +69,12 @@ export default function DataBankModern() {
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const { showError, showSuccess } = useGlobalDialog();
 
-  /* ----------------------------- Data Loading ----------------------------- */
-
   const loadFolders = useCallback(async () => {
     try {
       setLoading(true);
       const resp = await getFolderList();
       if (resp.success) {
         setFolders(resp.result);
-        // Cache all folders
         const cache: Record<number, Folder> = {};
         const cacheFolders = (folderList: Folder[]) => {
           folderList.forEach(folder => {
@@ -97,8 +86,7 @@ export default function DataBankModern() {
         };
         cacheFolders(resp.result);
         setFolderCache(cache);
-        
-        // Auto-select first folder if none selected
+
         if (!selectedFolderId && resp.result.length > 0) {
           setSelectedFolderId(resp.result[0].folder_id);
         }
@@ -116,11 +104,10 @@ export default function DataBankModern() {
     loadFolders();
   }, [loadFolders]);
 
-  /* ----------------------------- Folder Operations ----------------------------- */
-
   const selectFolder = useCallback(async (id: number) => {
     setSelectedFolderId(id);
-    
+    setActiveView("files");
+
     const cachedFolder = folderCache[id];
     if (cachedFolder && cachedFolder.files && cachedFolder.files.length > 0) {
       return;
@@ -131,7 +118,7 @@ export default function DataBankModern() {
       const resp = await getFolderById(id);
       if (resp.success) {
         const updatedFolder = resp.result as Folder;
-        
+
         setFolderCache(prev => ({
           ...prev,
           [id]: updatedFolder
@@ -166,6 +153,28 @@ export default function DataBankModern() {
     return null;
   }, [folders]);
 
+  const getBreadcrumbPath = useCallback((folderId: number | null): Folder[] => {
+    if (!folderId) return [];
+
+    const path: Folder[] = [];
+    const findPath = (items: Folder[], targetId: number): boolean => {
+      for (const folder of items) {
+        if (folder.folder_id === targetId) {
+          path.unshift(folder);
+          return true;
+        }
+        if (folder.sub_folders && findPath(folder.sub_folders, targetId)) {
+          path.unshift(folder);
+          return true;
+        }
+      }
+      return false;
+    };
+
+    findPath(folders, folderId);
+    return path;
+  }, [folders]);
+
   const refreshFolder = useCallback(async (folderId: number) => {
     try {
       setRefreshingFolder(folderId);
@@ -198,8 +207,6 @@ export default function DataBankModern() {
       setRefreshingFolder(null);
     }
   }, [showError, showSuccess]);
-
-  /* ----------------------------- File Operations ----------------------------- */
 
   const uploadFile = useCallback(async (folderId: number, file: File) => {
     try {
@@ -247,8 +254,6 @@ export default function DataBankModern() {
     e.target.value = "";
   }, [uploadFile]);
 
-  /* ----------------------------- Search & Filtering ----------------------------- */
-
   const matchesSearch = useCallback((folder: Folder, term: string): boolean => {
     const t = term.trim().toLowerCase();
     if (!t) return true;
@@ -264,8 +269,6 @@ export default function DataBankModern() {
     return folders.filter((f) => matchesSearch(f, searchTerm));
   }, [folders, searchTerm, matchesSearch]);
 
-  /* ----------------------------- UI Interactions ----------------------------- */
-
   const toggleExpand = useCallback((id: number) => {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
   }, []);
@@ -276,10 +279,13 @@ export default function DataBankModern() {
 
   const handleAddSubfolder = useCallback((folderId: number) => {
     setParentFolderId(folderId);
-    setFormOpen(true);
+    setActiveView("add-folder");
   }, []);
 
-  /* ----------------------------- Drag & Drop ----------------------------- */
+  const handleOpenPermissions = useCallback((folderId: number) => {
+    setSelectedFolderId(folderId);
+    setActiveView("permissions");
+  }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent, folderId: number) => {
     e.preventDefault();
@@ -298,8 +304,6 @@ export default function DataBankModern() {
       uploadFile(folderId, e.dataTransfer.files[0]);
     }
   }, [uploadFile]);
-
-  /* ----------------------------- Render Components ----------------------------- */
 
   const FolderNameWithTooltip = useCallback(({ folder, className = "" }: { folder: Folder; className?: string }) => (
     <Tooltip>
@@ -324,16 +328,16 @@ export default function DataBankModern() {
     const isLoadingDetails = loadingFolderDetails === folder.folder_id;
 
     return (
-      <div key={folder.folder_id} className="group" style={{ marginBottom: 4 }}>
+      <div key={folder.folder_id} className="group">
         <div
           onClick={() => selectFolder(folder.folder_id)}
           onKeyDown={(e) => { if (e.key === "Enter") selectFolder(folder.folder_id); }}
           role="button"
           tabIndex={0}
-          className={`flex items-center justify-between gap-2 cursor-pointer rounded-lg px-3 py-2 transition-all duration-200
+          className={`flex items-center justify-between gap-2 cursor-pointer rounded-lg px-3 py-2 transition-all duration-200 mb-1
             ${isSelected ? "bg-blue-50 border border-blue-200 shadow-sm" : "hover:bg-gray-50 border border-transparent"}
             ${isDragging ? "border-dashed border-blue-300 bg-blue-25" : ""}`}
-          style={{ ...indentStyle(depth) }}
+          style={{ marginLeft: `${depth * 16}px` }}
         >
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <div className="flex items-center gap-1">
@@ -342,28 +346,27 @@ export default function DataBankModern() {
                   onClick={(e) => { e.stopPropagation(); toggleExpand(folder.folder_id); }}
                   className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  {isExpanded ? 
-                    <ChevronDown className="w-4 h-4 text-gray-600" /> : 
+                  {isExpanded ?
+                    <ChevronDown className="w-4 h-4 text-gray-600" /> :
                     <ChevronRight className="w-4 h-4 text-gray-600" />
                   }
                 </button>
               ) : (
-                <span className="w-6 h-6" /> // Spacer for alignment
+                <span className="w-6 h-6" />
               )}
             </div>
 
             <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className={`p-2 rounded-lg ${
-                isSelected ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-600"
-              }`}>
+              <div className={`p-2 rounded-lg ${isSelected ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-600"
+                }`}>
                 <FolderIcon className="w-4 h-4" />
               </div>
-              
+
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <FolderNameWithTooltip 
-                    folder={folder} 
-                    className="text-sm font-semibold text-gray-900" 
+                  <FolderNameWithTooltip
+                    folder={folder}
+                    className="text-sm font-semibold text-gray-900"
                   />
                   {isLoadingDetails && (
                     <Loader2 className="w-3 h-3 animate-spin text-gray-400" />
@@ -400,8 +403,8 @@ export default function DataBankModern() {
                     onClick={(e) => { e.stopPropagation(); openFileInput(folder.folder_id); }}
                     className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
                   >
-                    {isUploading ? 
-                      <Loader2 className="w-4 h-4 animate-spin text-gray-600" /> : 
+                    {isUploading ?
+                      <Loader2 className="w-4 h-4 animate-spin text-gray-600" /> :
                       <Upload className="w-4 h-4 text-gray-600" />
                     }
                   </button>
@@ -416,16 +419,26 @@ export default function DataBankModern() {
                   onClick={(e) => { e.stopPropagation(); refreshFolder(folder.folder_id); }}
                   className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  <RefreshCw className={`w-4 h-4 text-gray-600 ${
-                    refreshingFolder === folder.folder_id ? "animate-spin" : ""
-                  }`} />
+                  <RefreshCw className={`w-4 h-4 text-gray-600 ${refreshingFolder === folder.folder_id ? "animate-spin" : ""
+                    }`} />
                 </button>
               </TooltipTrigger>
               <TooltipContent>Refresh folder</TooltipContent>
             </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleOpenPermissions(folder.folder_id); }}
+                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <Users className="w-4 h-4 text-gray-600" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Manage permissions</TooltipContent>
+            </Tooltip>
           </div>
 
-          {/* Hidden file input */}
           <input
             type="file"
             ref={(el) => { (fileInputRefs.current[folder.folder_id] = el) }}
@@ -435,7 +448,6 @@ export default function DataBankModern() {
           />
         </div>
 
-        {/* Animated children */}
         <AnimatePresence>
           {isExpanded && hasChildren && (
             <motion.div
@@ -444,30 +456,27 @@ export default function DataBankModern() {
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.2 }}
             >
-              <div className="pl-2 mt-1">
-                {folder.sub_folders!.map((child) => (
-                  <TreeItem key={child.folder_id} folder={child} depth={depth + 1} />
-                ))}
-              </div>
+              {folder.sub_folders!.map((child) => (
+                <TreeItem key={child.folder_id} folder={child} depth={depth + 1} />
+              ))}
             </motion.div>
           )}
         </AnimatePresence>
       </div>
     );
   }, [
-    expanded, selectedFolderId, uploadingFor, dragOverFolder, refreshingFolder, 
-    loadingFolderDetails, toggleExpand, selectFolder, openFileInput, refreshFolder, 
-    onFileInputChange, handleAddSubfolder, FolderNameWithTooltip
+    expanded, selectedFolderId, uploadingFor, dragOverFolder, refreshingFolder,
+    loadingFolderDetails, toggleExpand, selectFolder, openFileInput, refreshFolder,
+    onFileInputChange, handleAddSubfolder, handleOpenPermissions, FolderNameWithTooltip
   ]);
 
-  /* ----------------------------- Selected Folder Data ----------------------------- */
-
   const selectedFolder = useMemo(() => findFolderById(selectedFolderId), [findFolderById, selectedFolderId]);
+  const breadcrumbPath = useMemo(() => getBreadcrumbPath(selectedFolderId), [getBreadcrumbPath, selectedFolderId]);
   const latestFile = selectedFolder?.files?.[0] || null;
 
   const sortedFiles = useMemo(() => {
     if (!selectedFolder?.files) return [];
-    
+
     const files = [...selectedFolder.files];
     switch (sortBy) {
       case "name":
@@ -489,8 +498,6 @@ export default function DataBankModern() {
   const canUploadToSelected = selectedFolder?.permissions?.can_upload_file ?? false;
   const canDownloadFromSelected = selectedFolder?.permissions?.can_download_file ?? false;
 
-  /* ----------------------------- Loading State ----------------------------- */
-
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-4">
@@ -505,19 +512,203 @@ export default function DataBankModern() {
     );
   }
 
-  /* ----------------------------- Main Render ----------------------------- */
+  const renderFilesView = () => (
+    <>
+      {canUploadToSelected && (
+        <div
+          onDragOver={(e) => handleDragOver(e, selectedFolder!.folder_id)}
+          onDragLeave={handleDragLeave}
+          onDrop={(e) => handleDrop(e, selectedFolder!.folder_id)}
+          className={`rounded-xl border-2 border-dashed p-8 mb-6 text-center transition-all ${dragOverFolder === selectedFolder!.folder_id
+            ? "border-blue-400 bg-blue-25 border-solid"
+            : "border-gray-300 hover:border-gray-400"
+            }`}
+        >
+          <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Drop files here</h3>
+          <p className="text-gray-500 mb-4">
+            Upload Excel or CSV files up to 10MB
+          </p>
+          <Button
+            onClick={() => openFileInput(selectedFolder!.folder_id)}
+            variant="outline"
+          >
+            Select Files
+          </Button>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-semibold">Files ({filteredFiles.length})</h3>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+            <Button
+              variant={viewMode === "grid" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("grid")}
+              className="h-8 px-3"
+            >
+              <Grid3X3 className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={viewMode === "list" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("list")}
+              className="h-8 px-3"
+            >
+              <List className="w-4 h-4" />
+            </Button>
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <SortAsc className="w-4 h-4" />
+                Sort
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setSortBy("date")}>
+                By Date
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSortBy("name")}>
+                By Name
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSortBy("size")}>
+                By Size
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      {filteredFiles.length === 0 ? (
+        <div className="text-center py-12">
+          <FileIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No files found</h3>
+          <p className="text-gray-500 mb-4">
+            {searchTerm ? "Try adjusting your search" : "Get started by uploading your first file"}
+          </p>
+          {canUploadToSelected && (
+            <Button onClick={() => openFileInput(selectedFolder!.folder_id)}>
+              <Upload className="w-4 h-4 mr-2" />
+              Upload File
+            </Button>
+          )}
+        </div>
+      ) : viewMode === "grid" ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredFiles.map((file, index) => (
+            <FileCard
+              key={file.identifier}
+              file={file}
+              version={filteredFiles.length - index}
+              canDownload={canDownloadFromSelected}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filteredFiles.map((file, index) => (
+            <FileRow
+              key={file.identifier}
+              file={file}
+              version={filteredFiles.length - index}
+              canDownload={canDownloadFromSelected}
+            />
+          ))}
+        </div>
+      )}
+    </>
+  );
+
+  const renderContentItems = () => {
+    const allItems = [
+      ...(selectedFolder?.sub_folders?.map(folder => ({ type: 'folder', data: folder })) || []),
+      ...(selectedFolder?.files?.map(file => ({ type: 'file', data: file })) || [])
+    ];
+
+    if (allItems.length === 0) {
+      return (
+        <div className="text-center py-12">
+          <FolderIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Empty folder</h3>
+          <p className="text-gray-500 mb-4">
+            This folder doesn't contain any files or subfolders
+          </p>
+          <div className="flex gap-2 justify-center">
+            {selectedFolder?.permissions?.can_create_subfolder && (
+              <Button onClick={() => handleAddSubfolder(selectedFolder.folder_id)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Subfolder
+              </Button>
+            )}
+            {canUploadToSelected && (
+              <Button onClick={() => openFileInput(selectedFolder!.folder_id)} variant="outline">
+                <Upload className="w-4 h-4 mr-2" />
+                Upload File
+              </Button>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-3">
+        {allItems.map((item) => {
+          if (item.type === 'folder') {
+            const folder = item.data as Folder;
+            return (
+              <div
+                key={`folder-${folder.folder_id}`}
+                className="flex items-center gap-4 p-3 rounded-lg border hover:bg-gray-50 group transition-colors cursor-pointer"
+                onClick={() => selectFolder(folder.folder_id)}
+              >
+                <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
+                  <FolderIcon className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3 mb-1">
+                    <h4 className="font-semibold text-sm truncate">{folder.folder_name.replace(/_/g, " ")}</h4>
+                    <Badge variant="outline" className="text-xs">Folder</Badge>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs text-gray-500">
+                    <span>{folder.org_name || folder.company_name || ""}</span>
+                    <span>•</span>
+                    <span>{folder.files.length} files</span>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            );
+          } else {
+            const file = item.data as DataFile;
+            const version = filteredFiles.length - filteredFiles.findIndex(f => f.identifier === file.identifier);
+            return (
+              <FileRow
+                key={`file-${file.identifier}`}
+                file={file}
+                version={version}
+                canDownload={canDownloadFromSelected}
+              />
+            );
+          }
+        })}
+      </div>
+    );
+  };
 
   return (
     <TooltipProvider>
       <Container className="py-6">
-        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Data Bank</h1>
             <p className="text-gray-600 mt-2">Manage and organize your data files</p>
           </div>
-          <Button 
-            onClick={() => { setParentFolderId(undefined); setFormOpen(true); }}
+          <Button
+            onClick={() => { setParentFolderId(undefined); setActiveView("add-folder"); }}
             className="bg-blue-600 hover:bg-blue-700"
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -526,7 +717,6 @@ export default function DataBankModern() {
         </div>
 
         <div className="flex gap-6 h-[calc(100vh-200px)]">
-          {/* Sidebar - Folder Tree */}
           <Card className="w-80 flex-shrink-0">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">Folders</CardTitle>
@@ -556,7 +746,7 @@ export default function DataBankModern() {
                     <p>No folders found</p>
                   </div>
                 ) : (
-                  <div className="space-y-1">
+                  <div>
                     {filteredFolders.map((f) => (
                       <TreeItem key={f.folder_id} folder={f} />
                     ))}
@@ -566,11 +756,48 @@ export default function DataBankModern() {
             </CardContent>
           </Card>
 
-          {/* Main Content */}
           <div className="flex-1 flex flex-col min-w-0">
             {selectedFolder ? (
               <>
-                {/* Folder Header */}
+                <Card className="mb-6">
+                  <CardContent className="pt-6">
+                    <Breadcrumb>
+                      <BreadcrumbList>
+                        <BreadcrumbItem>
+                          <BreadcrumbLink
+                            href="#"
+                            onClick={() => setSelectedFolderId(null)}
+                            className="flex items-center gap-2"
+                          >
+                            <Home className="w-4 h-4" />
+                            Root
+                          </BreadcrumbLink>
+                        </BreadcrumbItem>
+                        {breadcrumbPath.map((folder, index) => (
+                          <div key={folder.folder_id} className="flex items-center">
+                            <BreadcrumbSeparator />
+                            <BreadcrumbItem>
+                              {index === breadcrumbPath.length - 1 ? (
+                                <span className="font-medium text-gray-900">
+                                  {folder.folder_name.replace(/_/g, " ")}
+                                </span>
+                              ) : (
+                                <BreadcrumbLink
+                                  href="#"
+                                  onClick={() => selectFolder(folder.folder_id)}
+                                  className="text-gray-600 hover:text-gray-900"
+                                >
+                                  {folder.folder_name.replace(/_/g, " ")}
+                                </BreadcrumbLink>
+                              )}
+                            </BreadcrumbItem>
+                          </div>
+                        ))}
+                      </BreadcrumbList>
+                    </Breadcrumb>
+                  </CardContent>
+                </Card>
+
                 <Card className="mb-6">
                   <CardHeader>
                     <div className="flex items-center justify-between">
@@ -583,6 +810,9 @@ export default function DataBankModern() {
                             {selectedFolder.folder_name.replace(/_/g, " ")}
                             <Badge variant="secondary" className="ml-2">
                               {selectedFolder.files.length} files
+                              {selectedFolder.sub_folders && selectedFolder.sub_folders.length > 0 &&
+                                `, ${selectedFolder.sub_folders.length} subfolders`
+                              }
                             </Badge>
                           </CardTitle>
                           <CardDescription className="flex items-center gap-2 mt-1">
@@ -612,7 +842,15 @@ export default function DataBankModern() {
                             Upload
                           </Button>
                         )}
-                        
+
+                        <Button
+                          variant="outline"
+                          onClick={() => handleOpenPermissions(selectedFolder.folder_id)}
+                        >
+                          <Users className="w-4 h-4 mr-2" />
+                          Permissions
+                        </Button>
+
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="outline" size="icon">
@@ -637,124 +875,46 @@ export default function DataBankModern() {
                   </CardHeader>
                 </Card>
 
-                {/* File Content */}
                 <Card className="flex-1">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle>Files</CardTitle>
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-                          <Button
-                            variant={viewMode === "grid" ? "default" : "ghost"}
-                            size="sm"
-                            onClick={() => setViewMode("grid")}
-                            className="h-8 px-3"
-                          >
-                            <Grid3X3 className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant={viewMode === "list" ? "default" : "ghost"}
-                            size="sm"
-                            onClick={() => setViewMode("list")}
-                            className="h-8 px-3"
-                          >
-                            <List className="w-4 h-4" />
-                          </Button>
-                        </div>
+                  <Tabs value={activeView} onValueChange={(v) => setActiveView(v as ActiveView)}>
+                    <TabsList className="m-3">
+                      <TabsTrigger value="files">
+                        <FileIcon className="w-4 h-4 mr-2" />
+                        All Content
+                      </TabsTrigger>
+                      <TabsTrigger value="add-folder">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Folder
+                      </TabsTrigger>
+                    </TabsList>
 
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" className="gap-2">
-                              <SortAsc className="w-4 h-4" />
-                              Sort
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setSortBy("date")}>
-                              By Date
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setSortBy("name")}>
-                              By Name
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setSortBy("size")}>
-                              By Size
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
-                  </CardHeader>
+                    <TabsContent value="files" className="mt-0 mx-3 max-h-96 overflow-auto">
+                      {renderContentItems()}
+                    </TabsContent>
 
-                  <CardContent>
-                    {/* Drop Zone */}
-                    {canUploadToSelected && (
-                      <div
-                        onDragOver={(e) => handleDragOver(e, selectedFolder.folder_id)}
-                        onDragLeave={handleDragLeave}
-                        onDrop={(e) => handleDrop(e, selectedFolder.folder_id)}
-                        className={`rounded-xl border-2 border-dashed p-8 mb-6 text-center transition-all ${
-                          dragOverFolder === selectedFolder.folder_id
-                            ? "border-blue-400 bg-blue-25 border-solid"
-                            : "border-gray-300 hover:border-gray-400"
-                        }`}
-                      >
-                        <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-lg font-semibold mb-2">Drop files here</h3>
-                        <p className="text-gray-500 mb-4">
-                          Upload Excel or CSV files up to 10MB
-                        </p>
-                        <Button
-                          onClick={() => openFileInput(selectedFolder.folder_id)}
-                          variant="outline"
-                        >
-                          Select Files
-                        </Button>
-                      </div>
-                    )}
+                    <TabsContent value="add-folder" className="mt-0 mx-3">
+                      <AddFolder
+                        setForm={() => {
+                          setActiveView("files");
+                          setParentFolderId(undefined);
+                          loadFolders();
+                        }}
+                        setReload={loadFolders}
+                        folderId={parentFolderId || selectedFolder.folder_id}
+                      />
+                    </TabsContent>
 
-                    {/* Files Display */}
-                    {filteredFiles.length === 0 ? (
-                      <div className="text-center py-12">
-                        <FileIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">No files found</h3>
-                        <p className="text-gray-500 mb-4">
-                          {searchTerm ? "Try adjusting your search" : "Get started by uploading your first file"}
-                        </p>
-                        {canUploadToSelected && (
-                          <Button onClick={() => openFileInput(selectedFolder.folder_id)}>
-                            <Upload className="w-4 h-4 mr-2" />
-                            Upload File
-                          </Button>
-                        )}
-                      </div>
-                    ) : viewMode === "grid" ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {filteredFiles.map((file, index) => (
-                          <FileCard 
-                            key={file.identifier} 
-                            file={file} 
-                            version={filteredFiles.length - index}
-                            canDownload={canDownloadFromSelected}
-                          />
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {filteredFiles.map((file, index) => (
-                          <FileRow
-                            key={file.identifier}
-                            file={file}
-                            version={filteredFiles.length - index}
-                            canDownload={canDownloadFromSelected}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
+                    <TabsContent value="permissions" className="mt-0">
+                      <FolderPermissions
+                        folder={selectedFolder}
+                        onClose={() => setActiveView("files")}
+                        onUpdate={loadFolders}
+                      />
+                    </TabsContent>
+                  </Tabs>
                 </Card>
               </>
             ) : (
-              /* Empty State */
               <Card className="flex-1 flex items-center justify-center">
                 <CardContent className="text-center py-16">
                   <FolderIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -762,7 +922,7 @@ export default function DataBankModern() {
                   <p className="text-gray-500 mb-6">
                     Choose a folder from the sidebar to view its contents
                   </p>
-                  <Button onClick={() => setFormOpen(true)}>
+                  <Button onClick={() => setActiveView("add-folder")}>
                     <Plus className="w-4 h-4 mr-2" />
                     Create Folder
                   </Button>
@@ -771,43 +931,10 @@ export default function DataBankModern() {
             )}
           </div>
         </div>
-
-        {/* Add Folder Modal */}
-        <AnimatePresence>
-          {formOpen && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-              onClick={() => setFormOpen(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.95, opacity: 0 }}
-                className="bg-white rounded-xl max-w-md w-full p-1"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <AddFolder
-                  setForm={() => {
-                    setFormOpen(false);
-                    setParentFolderId(undefined);
-                    loadFolders();
-                  }}
-                  setReload={loadFolders}
-                  folderId={parentFolderId}
-                />
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </Container>
     </TooltipProvider>
   );
 }
-
-/* ----------------------------- File Display Components ----------------------------- */
 
 const FileCard = ({ file, version, canDownload }: { file: DataFile; version: number; canDownload: boolean }) => (
   <Card className="p-4 hover:shadow-md transition-shadow group">
@@ -823,7 +950,7 @@ const FileCard = ({ file, version, canDownload }: { file: DataFile; version: num
         </Button>
       )}
     </div>
-    
+
     <h4 className="font-semibold text-sm mb-2 truncate">{file.file_name}</h4>
     <div className="space-y-1 text-xs text-gray-500">
       <div>Version #{version}</div>
@@ -838,7 +965,7 @@ const FileRow = ({ file, version, canDownload }: { file: DataFile; version: numb
     <div className="p-2 bg-gray-100 rounded-lg">
       <FileIcon className="w-5 h-5 text-gray-600" />
     </div>
-    
+
     <div className="flex-1 min-w-0">
       <div className="flex items-center gap-3 mb-1">
         <h4 className="font-semibold text-sm truncate">{file.file_name}</h4>
