@@ -1,4 +1,4 @@
-import { executeQuery, QueryBuilder } from "../helpers/db-helper";
+import { executeQuery, QueryBuilder, withTransaction } from "../helpers/db-helper";
 import { RepositoryBase } from "../helpers/repository-base"
 import { FolderFormValues } from "@/app/dashboard/data-bank/blocks/AddItem";
 import { File } from "fetch-blob/file.js";
@@ -32,6 +32,17 @@ export interface FolderPermissions {
   can_delete: boolean;
 }
 
+export interface FolderPermissionData {
+  userId: string;
+  permissions: {
+    can_create_subfolder: boolean;
+    can_upload_file: boolean;
+    can_download_file: boolean;
+    can_rename: boolean;
+    can_delete: boolean;
+  };
+}
+
 export interface DataFile {
   id: number;
   identifier: string;
@@ -53,12 +64,23 @@ export class DataRepository extends RepositoryBase {
 
   async getFolderList(flat: boolean = false) {
     try {
-      const sql = `
-      SELECT df.*
-      FROM data_folders df
-      WHERE df.status = 1
-      ORDER BY df.folder_id ASC
-    `;
+      let sql = `
+        SELECT df.*
+        FROM data_folders df
+        WHERE df.status = 1
+        ORDER BY df.folder_id ASC
+      `;
+      if (this.userId != '501' && this.userId != '502') {
+        sql = `
+          SELECT df.*
+          FROM data_folders df
+          JOIN folder_permissions fp ON fp.folder_id = df.folder_id
+          WHERE df.status = 1
+            AND fp.user_id = ${this.userId}
+          ORDER BY df.folder_id ASC
+        `;
+      }
+
 
       const flatFolders = await executeQuery(sql) as Folder[];
 
@@ -109,7 +131,7 @@ export class DataRepository extends RepositoryBase {
         let permissions = await new QueryBuilder('folder_permissions')
           .where('folder_id = ?', folder.folder_id)
           .where('user_id = ?', this.userId)
-          .selectOne(['can_create_subfolder', 'can_upload_file', 'can_download_file', 'can_rename', 'can_delete']) as FolderPermissions;
+          .selectOne(['can_create_subfolder', 'can_upload_file', 'can_download_file', 'can_rename', 'can_delete']) as any;
 
         if (permissions == null) {
           if (this.userId == '501' || this.userId == '502') {
@@ -129,12 +151,20 @@ export class DataRepository extends RepositoryBase {
               can_delete: false,
             };
           }
+        } else {
+          permissions = {
+            can_create_subfolder: Boolean(permissions.can_create_subfolder),
+            can_upload_file: Boolean(permissions.can_upload_file),
+            can_download_file: Boolean(permissions.can_download_file),
+            can_rename: Boolean(permissions.can_rename),
+            can_delete: Boolean(permissions.can_delete),
+          };
         }
 
-        folder.permissions = permissions;
+        folder.permissions = permissions as FolderPermissions;
       }
 
-      console.log(rootFolders);
+      customLog(rootFolders);
 
 
       return this.success(rootFolders);
@@ -161,13 +191,25 @@ export class DataRepository extends RepositoryBase {
 
       const element = folders[0];
 
-      const subFoldersSql = `
+      let subFoldersSql = `
         SELECT df.*
         FROM data_folders df
         WHERE df.status = 1
           AND df.parent_id = ?
         ORDER BY df.folder_id ASC
       `;
+
+      if (this.userId != '501' && this.userId != '502') {
+        subFoldersSql = `
+          SELECT df.*
+          FROM data_folders df
+          JOIN folder_permissions fp ON fp.folder_id = df.folder_id
+          WHERE fp.user_id = ${this.userId}
+            AND df.status = 1
+            AND df.parent_id = ?
+          ORDER BY df.folder_id ASC
+        `;
+      }
 
       const subFolders = await executeQuery(subFoldersSql, [folderId]) as Folder[];
 
@@ -184,7 +226,7 @@ export class DataRepository extends RepositoryBase {
         let permissions = await new QueryBuilder('folder_permissions')
           .where('folder_id = ?', subFolder.folder_id)
           .where('user_id = ?', this.userId)
-          .selectOne(['can_create_subfolder', 'can_upload_file', 'can_download_file', 'can_rename', 'can_delete']) as FolderPermissions;
+          .selectOne(['can_create_subfolder', 'can_upload_file', 'can_download_file', 'can_rename', 'can_delete']) as any;
 
         if (permissions == null) {
           if (this.userId == '501' || this.userId == '502') {
@@ -204,9 +246,17 @@ export class DataRepository extends RepositoryBase {
               can_delete: false,
             };
           }
+        } else {
+          permissions = {
+            can_create_subfolder: Boolean(permissions.can_create_subfolder),
+            can_upload_file: Boolean(permissions.can_upload_file),
+            can_download_file: Boolean(permissions.can_download_file),
+            can_rename: Boolean(permissions.can_rename),
+            can_delete: Boolean(permissions.can_delete),
+          };
         }
 
-        subFolder.permissions = permissions;
+        subFolder.permissions = permissions as FolderPermissions;
       }
 
       element.sub_folders = subFolders;
@@ -223,7 +273,7 @@ export class DataRepository extends RepositoryBase {
       let permissions = await new QueryBuilder('folder_permissions')
         .where('folder_id = ?', folderId)
         .where('user_id = ?', this.userId)
-        .selectOne(['can_create_subfolder', 'can_upload_file', 'can_download_file', 'can_rename', 'can_delete']) as FolderPermissions;
+        .selectOne(['can_create_subfolder', 'can_upload_file', 'can_download_file', 'can_rename', 'can_delete']) as any;
 
       if (permissions == null) {
         if (this.userId == '501' || this.userId == '502') {
@@ -243,9 +293,17 @@ export class DataRepository extends RepositoryBase {
             can_delete: false,
           };
         }
+      } else {
+        permissions = {
+          can_create_subfolder: Boolean(permissions.can_create_subfolder),
+          can_upload_file: Boolean(permissions.can_upload_file),
+          can_download_file: Boolean(permissions.can_download_file),
+          can_rename: Boolean(permissions.can_rename),
+          can_delete: Boolean(permissions.can_delete),
+        };
       }
 
-      element.permissions = permissions;
+      element.permissions = permissions as FolderPermissions;
 
       console.log(element);
 
@@ -269,6 +327,17 @@ export class DataRepository extends RepositoryBase {
       if (result == 0) {
         return this.failure('Request Failed!')
       }
+
+      await new QueryBuilder('folder_permissions')
+        .insert({
+          folder_id: result,
+          user_id: userId,
+          can_create_subfolder: 1,
+          can_upload_file: 1,
+          can_download_file: 1,
+          can_rename: 1,
+          can_delete: 1,
+        });
 
       return this.success('Folder Added Successfully');
     } catch (error) {
@@ -327,6 +396,83 @@ export class DataRepository extends RepositoryBase {
       }
 
       return this.success('File Deleted Successfully');
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async getFolderPermissions(
+    folderId: number
+  ) {
+    try {
+      let sql = `
+        SELECT u.name as userName, u.email as userEmail,
+          fp.user_id as userId,
+          fp.can_create_subfolder,
+          fp.can_upload_file,
+          fp.can_download_file,
+          fp.can_rename,
+          fp.can_delete
+          FROM folder_permissions fp
+          JOIN users u ON u.id = fp.user_id
+          WHERE fp.folder_id = ?
+            AND u.status = 1
+      `;
+
+      const permissions = await executeQuery<any[]>(sql, [folderId]);
+
+      if (permissions.length == 0) {
+        return this.failure('No Permissions Found!');
+      }
+
+      const formattedPermissions = permissions.map(p => ({
+        userId: p.userId.toString(),
+        userName: p.userName,
+        userEmail: p.userEmail,
+        permissions: {
+          can_create_subfolder: Boolean(p.can_create_subfolder),
+          can_upload_file: Boolean(p.can_upload_file),
+          can_download_file: Boolean(p.can_download_file),
+          can_rename: Boolean(p.can_rename),
+          can_delete: Boolean(p.can_delete),
+        }
+      }));
+
+      return this.success(formattedPermissions);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async saveFolderPermissions(folderId: number, permissions: FolderPermissionData[]) {
+    try {
+      return withTransaction(async (connection) => {
+        try {
+          await new QueryBuilder('folder_permissions')
+            .setConnection(connection)
+            .where('folder_id = ?', folderId)
+            .delete();
+
+          for (const perm of permissions) {
+            await new QueryBuilder('folder_permissions')
+              .setConnection(connection)
+              .insert({
+                folder_id: folderId,
+                user_id: perm.userId,
+                can_create_subfolder: perm.permissions.can_create_subfolder ? 1 : 0,
+                can_upload_file: perm.permissions.can_upload_file ? 1 : 0,
+                can_download_file: perm.permissions.can_download_file ? 1 : 0,
+                can_rename: perm.permissions.can_rename ? 1 : 0,
+                can_delete: perm.permissions.can_delete ? 1 : 0,
+                updated_by: this.userId,
+              });
+          }
+
+          return this.success('Permissions saved successfully');
+        } catch (error) {
+          return this.handleError(error);
+        }
+      });
     } catch (error) {
       return this.handleError(error);
     }

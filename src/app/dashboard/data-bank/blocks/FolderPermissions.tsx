@@ -18,10 +18,11 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Folder } from "@/lib/repositories/dataRepository";
-import type { FolderPermissions } from "@/lib/repositories/dataRepository";
+import type { FolderPermissionData, FolderPermissions } from "@/lib/repositories/dataRepository";
 import { Container } from "@/components/ui/container";
 import { getEmployeeList } from "@/lib/actions/user";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { getFolderPermissions, saveFolderPermissions } from "@/lib/actions/data-bank";
 
 interface User {
   id: string;
@@ -53,20 +54,35 @@ export default function FolderPermissions({ folder, onClose, onUpdate }: FolderP
   const [selectedUser, setSelectedUser] = useState<FolderPermission | null>(null);
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
 
-  // Mock data - replace with actual API calls
+  // Load permissions and available users
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
       
-      const res = await getEmployeeList()
+      try {
+        // Load available users
+        const usersRes = await getEmployeeList();
+        if (usersRes.success) {
+          // Convert user IDs to strings for consistency
+          const formattedUsers = usersRes.result.map((user: any) => ({
+            id: user.id.toString(),
+            name: user.name,
+            email: user.email,
+            avatar: user.avatar
+          }));
+          setAvailableUsers(formattedUsers);
+        }
 
-      if (res.success) {
-        setAvailableUsers(res.result);
-      } else {
-        setAvailableUsers([]);
+        // Load existing permissions
+        const permissionsRes = await getFolderPermissions(folder.folder_id);
+        if (permissionsRes.success) {
+          setPermissions(permissionsRes.result);
+        }
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     };
 
     loadData();
@@ -111,12 +127,26 @@ export default function FolderPermissions({ folder, onClose, onUpdate }: FolderP
 
   const savePermissions = async () => {
     setSaving(true);
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const permissionData: FolderPermissionData[] = permissions.map(perm => ({
+        userId: perm.userId,
+        permissions: perm.permissions
+      }));
+
+      const result = await saveFolderPermissions(folder.folder_id, permissionData);
+      
+      if (result.success) {
+        onUpdate();
+        onClose();
+      } else {
+        console.error('Failed to save permissions:', result.error);
+        // You might want to show an error toast here
+      }
+    } catch (error) {
+      console.error('Error saving permissions:', error);
+    } finally {
       setSaving(false);
-      onUpdate();
-      onClose();
-    }, 1000);
+    }
   };
 
   const getAvatarFallback = (name: string) => {

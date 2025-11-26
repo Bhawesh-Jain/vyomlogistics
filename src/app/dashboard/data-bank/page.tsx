@@ -21,7 +21,8 @@ import {
   Users,
   Menu,
   Trash2,
-  Edit2
+  Edit2,
+  ChartNoAxesColumn
 } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -44,6 +45,7 @@ import AddFolder from "./blocks/AddItem";
 import { useGlobalDialog } from "@/providers/DialogProvider";
 import FolderPermissions from "./blocks/FolderPermissions";
 import { toast } from "@/hooks/use-toast";
+import { useUser } from "@/contexts/user-context";
 
 type ExpandMap = Record<number, boolean>;
 type ViewMode = "grid" | "list";
@@ -73,6 +75,9 @@ export default function DataBankModern() {
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   const { showError, showSuccess, showConfirmation, setLoading: setDialogLoading } = useGlobalDialog();
+  const { user } = useUser(); 
+
+  const canEditPermissions = user.role == '1' || user.role == '2';
 
   const loadFolders = useCallback(async () => {
     try {
@@ -553,18 +558,20 @@ export default function DataBankModern() {
                     className={`mr-2 w-4 h-4 ${refreshingFolder === folder.folder_id ? "animate-spin" : ""
                       }`}
                   />
-                  <div>Refresh</div>
+                  Refresh
                 </DropdownMenuItem>
 
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOpenPermissions(folder.folder_id);
-                  }}
-                >
-                  <Users className="mr-2 w-4 h-4" />
-                  Manage Permissions
-                </DropdownMenuItem>
+                {canEditPermissions && (
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenPermissions(folder.folder_id);
+                    }}
+                  >
+                    <Users className="mr-2 w-4 h-4" />
+                    Manage Permissions
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -1002,14 +1009,14 @@ export default function DataBankModern() {
                 {MemoizedSidebarContent}
               </SheetContent>
             </Sheet>
-            <Button
+            {canEditPermissions && <Button
               onClick={handleAddRootFolder}
               className="bg-blue-600 hover:bg-blue-700 text-sm"
               size="sm"
             >
               <Plus className="w-4 h-4 md:mr-2" />
               <span className="hidden sm:inline">New Folder</span>
-            </Button>
+            </Button>}
           </CardHeader>
         </div>
 
@@ -1117,10 +1124,10 @@ export default function DataBankModern() {
                                 <RefreshCw className="w-4 h-4 mr-2" />
                                 Refresh
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleOpenPermissions(selectedFolder.folder_id)}>
+                              {canEditPermissions && <DropdownMenuItem onClick={() => handleOpenPermissions(selectedFolder.folder_id)}>
                                 <Users className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
                                 Permissions
-                              </DropdownMenuItem>
+                              </DropdownMenuItem>}
                               {selectedFolder.permissions?.can_create_subfolder && (
                                 <DropdownMenuItem onClick={() => handleAddSubfolder(selectedFolder.folder_id)}>
                                   <Plus className="w-4 h-4 mr-2" />
@@ -1148,7 +1155,7 @@ export default function DataBankModern() {
                   <Card className="flex-1">
                     <Tabs value={activeView} onValueChange={(v) => setActiveView(v as ActiveView)}>
                       <div className="flex flex-row justify-between items-center">
-                        <TabsList className="m-2 md:m-3 flex-wrap">
+                        {selectedFolder.permissions?.can_create_subfolder ? <TabsList className="m-2 md:m-3 flex-wrap">
                           <TabsTrigger value="files" className="text-xs md:text-sm">
                             <FileIcon className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
                             All Content
@@ -1157,7 +1164,11 @@ export default function DataBankModern() {
                             <Plus className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
                             Add Folder
                           </TabsTrigger>
-                        </TabsList>
+                          {canEditPermissions && <TabsTrigger value="permissions" className="text-xs md:text-sm">
+                            <ChartNoAxesColumn className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                            Manage Permissions
+                          </TabsTrigger>}
+                        </TabsList> : <div></div>}
 
                         <Button
                           className="m-2 md:m-3 flex-wrap hidden md:flex"
