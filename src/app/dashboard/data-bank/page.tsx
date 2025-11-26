@@ -39,7 +39,7 @@ import { getFolderList, uploadDataFile, getFolderById } from "@/lib/actions/data
 import { DataFile, Folder } from "@/lib/repositories/dataRepository";
 import { FileTransfer } from "@/lib/helpers/file-helper";
 import { formatDateTime } from "@/lib/utils/date";
-import { formatFileSize } from "@/lib/utils";
+import { cn, formatFileSize } from "@/lib/utils";
 import AddFolder from "./blocks/AddItem";
 import { useGlobalDialog } from "@/providers/DialogProvider";
 import FolderPermissions from "./blocks/FolderPermissions";
@@ -57,6 +57,7 @@ export default function DataBankModern() {
 
   const [expanded, setExpanded] = useState<ExpandMap>({});
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
+  const [editFolderId, setEditFolderId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeView, setActiveView] = useState<ActiveView>("files");
   const [parentFolderId, setParentFolderId] = useState<number | null>(null);
@@ -346,7 +347,7 @@ export default function DataBankModern() {
           className={`flex items-center justify-between gap-2 cursor-pointer rounded-lg px-3 py-2 transition-all duration-200 mb-1
             ${isSelected ? "bg-blue-50 border border-blue-200 shadow-sm" : "hover:bg-gray-50 border border-transparent"}
             ${isDragging ? "border-dashed border-blue-300 bg-blue-25" : ""}`}
-          style={{ marginLeft: `${depth * 16}px` }}
+          style={{ marginLeft: `${depth * 12}px` }}
         >
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <div className="flex items-center gap-1">
@@ -391,61 +392,69 @@ export default function DataBankModern() {
           </div>
 
           <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-            {folder.permissions?.can_create_subfolder && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleAddSubfolder(folder.folder_id); }}
-                    className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                  >
-                    <Plus className="w-4 h-4 text-gray-600" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Add subfolder</TooltipContent>
-              </Tooltip>
-            )}
-
-            {folder.permissions?.can_upload_file && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); openFileInput(folder.folder_id); }}
-                    className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                  >
-                    {isUploading ?
-                      <Loader2 className="w-4 h-4 animate-spin text-gray-600" /> :
-                      <Upload className="w-4 h-4 text-gray-600" />
-                    }
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Upload file</TooltipContent>
-              </Tooltip>
-            )}
-
-            <Tooltip>
-              <TooltipTrigger asChild>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <button
-                  onClick={(e) => { e.stopPropagation(); refreshFolder(folder.folder_id); }}
+                  onClick={(e) => e.stopPropagation()}
                   className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  <RefreshCw className={`w-4 h-4 text-gray-600 ${refreshingFolder === folder.folder_id ? "animate-spin" : ""
-                    }`} />
+                  <MoreVertical className="w-4 h-4 text-gray-600" />
                 </button>
-              </TooltipTrigger>
-              <TooltipContent>Refresh folder</TooltipContent>
-            </Tooltip>
+              </DropdownMenuTrigger>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleOpenPermissions(folder.folder_id); }}
-                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              <DropdownMenuContent align="end" className="w-48">
+                {folder.permissions?.can_create_subfolder && (
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAddSubfolder(folder.folder_id);
+                    }}
+                  >
+                    <Plus className="mr-2 w-4 h-4" />
+                    Add subfolder
+                  </DropdownMenuItem>
+                )}
+
+                {folder.permissions?.can_upload_file && (
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openFileInput(folder.folder_id);
+                    }}
+                  >
+                    {isUploading ? (
+                      <Loader2 className="mr-2 w-4 h-4 animate-spin" />
+                    ) : (
+                      <Upload className="mr-2 w-4 h-4" />
+                    )}
+                    Upload file
+                  </DropdownMenuItem>
+                )}
+
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    refreshFolder(folder.folder_id);
+                  }}
                 >
-                  <Users className="w-4 h-4 text-gray-600" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>Manage permissions</TooltipContent>
-            </Tooltip>
+                  <RefreshCw
+                    className={`mr-2 w-4 h-4 ${refreshingFolder === folder.folder_id ? "animate-spin" : ""
+                      }`}
+                  />
+                  Refresh
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenPermissions(folder.folder_id);
+                  }}
+                >
+                  <Users className="mr-2 w-4 h-4" />
+                  Manage Permissions
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <input
@@ -601,8 +610,8 @@ export default function DataBankModern() {
             {searchTerm ? "Try adjusting your search" : "Get started by uploading your first file"}
           </p>
           {canUploadToSelected && (
-            <Button 
-              onClick={() => openFileInput(selectedFolder!.folder_id)} 
+            <Button
+              onClick={() => openFileInput(selectedFolder!.folder_id)}
               size="sm"
               className="text-sm"
             >
@@ -653,8 +662,8 @@ export default function DataBankModern() {
           </p>
           <div className="flex flex-col sm:flex-row gap-2 justify-center">
             {selectedFolder?.permissions?.can_create_subfolder && (
-              <Button 
-                onClick={() => handleAddSubfolder(selectedFolder.folder_id)} 
+              <Button
+                onClick={() => handleAddSubfolder(selectedFolder.folder_id)}
                 size="sm"
                 className="text-sm"
               >
@@ -663,9 +672,9 @@ export default function DataBankModern() {
               </Button>
             )}
             {canUploadToSelected && (
-              <Button 
-                onClick={() => openFileInput(selectedFolder!.folder_id)} 
-                variant="outline" 
+              <Button
+                onClick={() => openFileInput(selectedFolder!.folder_id)}
+                variant="outline"
                 size="sm"
                 className="text-sm"
               >
@@ -679,46 +688,76 @@ export default function DataBankModern() {
     }
 
     return (
-      <div className="space-y-3">
-        {allItems.map((item) => {
-          if (item.type === 'folder') {
-            const folder = item.data as Folder;
-            return (
-              <div
-                key={`folder-${folder.folder_id}`}
-                className="flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50 group transition-colors cursor-pointer"
-                onClick={() => selectFolder(folder.folder_id)}
-              >
-                <div className="p-2 bg-blue-100 rounded-lg text-blue-600 flex-shrink-0">
-                  <FolderIcon className="w-4 h-4 md:w-5 md:h-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mb-1">
-                    <h4 className="font-semibold text-sm truncate">{folder.folder_name.replace(/_/g, " ")}</h4>
-                    <Badge variant="outline" className="text-xs w-fit">Folder</Badge>
+      <div
+        className="relative space-y-3"
+        onDragOver={(e) => handleDragOver(e, selectedFolder!.folder_id)}
+        onDragLeave={handleDragLeave}
+        onDrop={(e) => handleDrop(e, selectedFolder!.folder_id)}
+      >
+        {/* Drop Hint Overlay - only visible during drag */}
+        {dragOverFolder === selectedFolder!.folder_id && (
+          <div className=" absolute inset-0 z-20 flex flex-col items-center justify-center border-2 border-dashed border-blue-400  bg-blue-25/80 rounded-xl backdrop-blur-sm transition-all">
+            <Upload className="w-12 h-12 text-blue-500 mb-4 animate-pulse" />
+            <h3 className="text-lg font-semibold mb-2">Drop files to upload</h3>
+            <p className="text-gray-600 text-sm mb-4">Excel or CSV files up to 10MB</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => openFileInput(selectedFolder!.folder_id)}
+            >
+              Select Files
+            </Button>
+          </div>
+        )}
+
+        {/* Content under drop overlay */}
+        <div className={cn(dragOverFolder === selectedFolder!.folder_id ? "opacity-20 pointer-events-none" : "", "space-y-1.5")}>
+          {allItems.map((item) => {
+            if (item.type === "folder") {
+              const folder = item.data as Folder;
+
+              return (
+                <div
+                  key={`folder-${folder.folder_id}`}
+                  className="flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50 group transition-colors cursor-pointer"
+                  onClick={() => selectFolder(folder.folder_id)}
+                >
+                  <div className="p-2 bg-blue-100 rounded-lg text-blue-600 flex-shrink-0">
+                    <FolderIcon className="w-4 h-4 md:w-5 md:h-5" />
                   </div>
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs text-gray-500">
-                    <span className="truncate">{folder.org_name || folder.company_name || ""}</span>
-                    <span className="hidden sm:inline">•</span>
-                    <span>{folder.files.length} files</span>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mb-1">
+                      <h4 className="font-semibold text-sm truncate">{folder.folder_name.replace(/_/g, " ")}</h4>
+                      <Badge variant="outline" className="text-xs w-fit">Folder</Badge>
+                    </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs text-gray-500">
+                      <span className="truncate">{folder.org_name || folder.company_name || ""}</span>
+                      <span className="hidden sm:inline">•</span>
+                      <span>{folder.files.length} files</span>
+                    </div>
                   </div>
+
+                  <ChevronRight className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
                 </div>
-                <ChevronRight className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-              </div>
-            );
-          } else {
-            const file = item.data as DataFile;
-            const version = filteredFiles.length - filteredFiles.findIndex(f => f.identifier === file.identifier);
-            return (
-              <FileRow
-                key={`file-${file.identifier}`}
-                file={file}
-                version={version}
-                canDownload={canDownloadFromSelected}
-              />
-            );
-          }
-        })}
+              );
+            } else {
+              const file = item.data as DataFile;
+              const version = filteredFiles.length - filteredFiles.findIndex(
+                (f) => f.identifier === file.identifier
+              );
+
+              return (
+                <FileRow
+                  key={`file-${file.identifier}`}
+                  file={file}
+                  version={version}
+                  canDownload={canDownloadFromSelected}
+                />
+              );
+            }
+          })}
+        </div>
       </div>
     );
   };
@@ -766,14 +805,14 @@ export default function DataBankModern() {
 
   return (
     <TooltipProvider>
-      <Container className="py-4 md:py-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Data Bank</h1>
-              <p className="text-gray-600 mt-1 md:mt-2 text-sm md:text-base">Manage and organize your data files</p>
-            </div>
-          </div>
+      <Container className="">
+        <div className="flex items-center justify-between">
+          <CardHeader>
+            <CardTitle>Data Bank</CardTitle>
+            <CardDescription>Manage and organize your data files</CardDescription>
+          </CardHeader>
+
+          <CardHeader>
             <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
               <SheetTrigger asChild className="lg:hidden">
                 <Button variant="outline" size="sm">
@@ -784,200 +823,217 @@ export default function DataBankModern() {
                 <SidebarContent />
               </SheetContent>
             </Sheet>
-          <Button
-            onClick={handleAddRootFolder}
-            className="bg-blue-600 hover:bg-blue-700 text-sm"
-            size="sm"
-          >
-            <Plus className="w-4 h-4 md:mr-2" />
-            <span className="hidden sm:inline">New Folder</span>
-          </Button>
+            <Button
+              onClick={handleAddRootFolder}
+              className="bg-blue-600 hover:bg-blue-700 text-sm"
+              size="sm"
+            >
+              <Plus className="w-4 h-4 md:mr-2" />
+              <span className="hidden sm:inline">New Folder</span>
+            </Button>
+          </CardHeader>
         </div>
 
-        <div className="flex gap-4 md:gap-6 h-[calc(100vh-180px)] md:h-[calc(100vh-200px)]">
-          {/* Desktop Sidebar */}
-          <div className="hidden lg:block w-80 flex-shrink-0">
-            <SidebarContent />
-          </div>
+        <CardContent>
+          <div className="flex gap-4 md:gap-6 h-[calc(100vh-180px)] md:h-[calc(100vh-220px)]">
+            {/* Desktop Sidebar */}
+            <div className="hidden lg:block w-80 flex-shrink-0">
+              <SidebarContent />
+            </div>
 
-          <div className="flex-1 flex flex-col min-w-0">
-            {selectedFolder ? (
-              <>
-                <Card className="mb-4 md:mb-6">
-                  <CardContent className="pt-4 md:pt-6">
-                    <Breadcrumb>
-                      <BreadcrumbList className="flex-wrap">
-                        <BreadcrumbItem>
-                          <BreadcrumbLink
-                            href="#"
-                            onClick={() => setSelectedFolderId(null)}
-                            className="flex items-center gap-2 text-sm"
-                          >
-                            <Home className="w-3 h-3 md:w-4 md:h-4" />
-                            Root
-                          </BreadcrumbLink>
-                        </BreadcrumbItem>
-                        {breadcrumbPath.map((folder, index) => (
-                          <div key={folder.folder_id} className="flex items-center">
-                            <BreadcrumbSeparator />
-                            <BreadcrumbItem>
-                              {index === breadcrumbPath.length - 1 ? (
-                                <span className="font-medium text-gray-900 text-sm">
-                                  {folder.folder_name.replace(/_/g, " ")}
-                                </span>
-                              ) : (
-                                <BreadcrumbLink
-                                  href="#"
-                                  onClick={() => selectFolder(folder.folder_id)}
-                                  className="text-gray-600 hover:text-gray-900 text-sm"
-                                >
-                                  {folder.folder_name.replace(/_/g, " ")}
-                                </BreadcrumbLink>
-                              )}
-                            </BreadcrumbItem>
+            <div className="flex-1 flex flex-col min-w-0">
+              {selectedFolder ? (
+                <>
+                  <Card className="mb-4 md:mb-6">
+                    <CardContent className="pt-4 md:pt-6">
+                      <Breadcrumb>
+                        <BreadcrumbList className="flex-wrap gap-0 sm:gap-1">
+                          <BreadcrumbItem>
+                            <BreadcrumbLink
+                              href="#"
+                              onClick={() => setSelectedFolderId(null)}
+                              className="flex items-center gap-2 text-sm"
+                            >
+                              <Home className="w-3 h-3 md:w-4 md:h-4" />
+                              Root
+                            </BreadcrumbLink>
+                          </BreadcrumbItem>
+                          {breadcrumbPath.map((folder, index) => (
+                            <div key={folder.folder_id} className="flex items-center">
+                              <BreadcrumbSeparator />
+                              <BreadcrumbItem>
+                                {index === breadcrumbPath.length - 1 ? (
+                                  <span className="font-medium text-gray-900 text-sm">
+                                    {folder.folder_name.replace(/_/g, " ")}
+                                  </span>
+                                ) : (
+                                  <BreadcrumbLink
+                                    href="#"
+                                    onClick={() => selectFolder(folder.folder_id)}
+                                    className="text-gray-600 hover:text-gray-900 text-sm"
+                                  >
+                                    {folder.folder_name.replace(/_/g, " ")}
+                                  </BreadcrumbLink>
+                                )}
+                              </BreadcrumbItem>
+                            </div>
+                          ))}
+                        </BreadcrumbList>
+                      </Breadcrumb>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="mb-4 md:mb-6">
+                    <CardHeader className="pb-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3 md:gap-4">
+                          <div className="p-2 md:p-3 rounded-lg md:rounded-xl bg-blue-100 text-blue-600">
+                            <FolderIcon className="w-4 h-4 md:w-6 md:h-6" />
                           </div>
-                        ))}
-                      </BreadcrumbList>
-                    </Breadcrumb>
-                  </CardContent>
-                </Card>
-
-                <Card className="mb-4 md:mb-6">
-                  <CardHeader className="pb-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex items-center gap-3 md:gap-4">
-                        <div className="p-2 md:p-3 rounded-lg md:rounded-xl bg-blue-100 text-blue-600">
-                          <FolderIcon className="w-4 h-4 md:w-6 md:h-6" />
+                          <div className="min-w-0">
+                            <CardTitle className="text-lg md:text-xl flex flex-col sm:flex-row sm:items-center gap-2">
+                              <span className="truncate">{selectedFolder.folder_name.replace(/_/g, " ")}</span>
+                              <Badge variant="secondary" className="w-fit text-xs">
+                                {selectedFolder.files.length} files
+                                {selectedFolder.sub_folders && selectedFolder.sub_folders.length > 0 &&
+                                  `, ${selectedFolder.sub_folders.length} subfolders`
+                                }
+                              </Badge>
+                            </CardTitle>
+                            <CardDescription className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mt-1 text-xs md:text-sm">
+                              <span>{selectedFolder.org_name || selectedFolder.company_name}</span>
+                              {latestFile && (
+                                <>
+                                  <span className="hidden sm:inline">•</span>
+                                  <span>Last updated {formatDateTime(latestFile.created_on)}</span>
+                                </>
+                              )}
+                            </CardDescription>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <CardTitle className="text-lg md:text-xl flex flex-col sm:flex-row sm:items-center gap-2">
-                            <span className="truncate">{selectedFolder.folder_name.replace(/_/g, " ")}</span>
-                            <Badge variant="secondary" className="w-fit text-xs">
-                              {selectedFolder.files.length} files
-                              {selectedFolder.sub_folders && selectedFolder.sub_folders.length > 0 &&
-                                `, ${selectedFolder.sub_folders.length} subfolders`
-                              }
-                            </Badge>
-                          </CardTitle>
-                          <CardDescription className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mt-1 text-xs md:text-sm">
-                            <span>{selectedFolder.org_name || selectedFolder.company_name}</span>
-                            {latestFile && (
-                              <>
-                                <span className="hidden sm:inline">•</span>
-                                <span>Last updated {formatDateTime(latestFile.created_on)}</span>
-                              </>
-                            )}
-                          </CardDescription>
-                        </div>
-                      </div>
 
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {canUploadToSelected && (
-                          <Button
-                            onClick={() => openFileInput(selectedFolder.folder_id)}
-                            disabled={uploadingFor === selectedFolder.folder_id}
-                            className="bg-blue-600 hover:bg-blue-700 text-sm"
-                            size="sm"
-                          >
-                            {uploadingFor === selectedFolder.folder_id ? (
-                              <Loader2 className="w-3 h-3 md:w-4 md:h-4 animate-spin mr-1 md:mr-2" />
-                            ) : (
-                              <Upload className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
-                            )}
-                            Upload
-                          </Button>
-                        )}
-
-                        <Button
-                          variant="outline"
-                          onClick={() => handleOpenPermissions(selectedFolder.folder_id)}
-                          size="sm"
-                          className="text-sm"
-                        >
-                          <Users className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
-                          Permissions
-                        </Button>
-
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" className="px-2">
-                              <MoreVertical className="w-4 h-4" />
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {canUploadToSelected && (
+                            <Button
+                              onClick={() => openFileInput(selectedFolder.folder_id)}
+                              disabled={uploadingFor === selectedFolder.folder_id}
+                              className="bg-blue-600 hover:bg-blue-700 text-sm"
+                              size="sm"
+                            >
+                              {uploadingFor === selectedFolder.folder_id ? (
+                                <Loader2 className="w-3 h-3 md:w-4 md:h-4 animate-spin mr-1 md:mr-2" />
+                              ) : (
+                                <Upload className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                              )}
+                              Upload
                             </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => refreshFolder(selectedFolder.folder_id)}>
-                              <RefreshCw className="w-4 h-4 mr-2" />
-                              Refresh
-                            </DropdownMenuItem>
-                            {selectedFolder.permissions?.can_create_subfolder && (
-                              <DropdownMenuItem onClick={() => handleAddSubfolder(selectedFolder.folder_id)}>
-                                <Plus className="w-4 h-4 mr-2" />
-                                Add Subfolder
+                          )}
+
+                          <Button
+                            variant="outline"
+                            onClick={() => handleOpenPermissions(selectedFolder.folder_id)}
+                            size="sm"
+                            className="text-sm"
+                          >
+                            <Users className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                            Permissions
+                          </Button>
+
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="sm" className="px-2">
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => refreshFolder(selectedFolder.folder_id)}>
+                                <RefreshCw className="w-4 h-4 mr-2" />
+                                Refresh
                               </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                              {selectedFolder.permissions?.can_create_subfolder && (
+                                <DropdownMenuItem onClick={() => handleAddSubfolder(selectedFolder.folder_id)}>
+                                  <Plus className="w-4 h-4 mr-2" />
+                                  Add Subfolder
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </div>
-                    </div>
-                  </CardHeader>
-                </Card>
+                    </CardHeader>
+                  </Card>
 
-                <Card className="flex-1">
-                  <Tabs value={activeView} onValueChange={(v) => setActiveView(v as ActiveView)}>
-                    <TabsList className="m-2 md:m-3 flex-wrap">
-                      <TabsTrigger value="files" className="text-xs md:text-sm">
-                        <FileIcon className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
-                        All Content
-                      </TabsTrigger>
-                      <TabsTrigger value="add-folder" className="text-xs md:text-sm">
-                        <Plus className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
-                        Add Folder
-                      </TabsTrigger>
-                    </TabsList>
+                  <Card className="flex-1">
+                    <Tabs value={activeView} onValueChange={(v) => setActiveView(v as ActiveView)}>
+                      <TabsList className="m-2 md:m-3 flex-wrap">
+                        <TabsTrigger value="files" className="text-xs md:text-sm">
+                          <FileIcon className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                          All Content
+                        </TabsTrigger>
+                        <TabsTrigger value="add-folder" className="text-xs md:text-sm">
+                          <Plus className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                          Add Folder
+                        </TabsTrigger>
+                      </TabsList>
 
-                    <TabsContent value="files" className="mt-0 mb-2 md:mb-3 mx-2 md:mx-3 max-h-96 overflow-auto">
-                      {renderContentItems()}
-                    </TabsContent>
+                      <TabsContent value="files" className="mt-0 mb-2 md:mb-3 mx-2 md:mx-3 max-h-96 overflow-auto">
+                        {renderContentItems()}
+                      </TabsContent>
 
-                    <TabsContent value="add-folder" className="mt-0 mb-2 md:mb-3 mx-2 md:mx-3 overflow-auto">
-                      <AddFolder
-                        setForm={() => {
-                          setActiveView("files");
-                          setParentFolderId(null);
-                          loadFolders();
-                        }}
-                        setReload={loadFolders}
-                        folderId={parentFolderId}
-                      />
-                    </TabsContent>
+                      <TabsContent value="add-folder" className="mt-0 mb-2 md:mb-3 mx-2 md:mx-3 overflow-auto">
+                        <AddFolder
+                          setForm={() => {
+                            setActiveView("files");
+                            setParentFolderId(null);
+                            loadFolders();
+                          }}
+                          setReload={loadFolders}
+                          folderId={editFolderId}
+                          parentId={parentFolderId}
+                        />
+                      </TabsContent>
 
-                    <TabsContent value="permissions" className="mt-0">
-                      <FolderPermissions
-                        folder={selectedFolder}
-                        onClose={() => setActiveView("files")}
-                        onUpdate={loadFolders}
-                      />
-                    </TabsContent>
-                  </Tabs>
-                </Card>
-              </>
-            ) : (
-              <Card className="flex-1 flex items-center justify-center">
-                <CardContent className="text-center py-12 md:py-16">
-                  <FolderIcon className="w-12 h-12 md:w-16 md:h-16 text-gray-300 mx-auto mb-3 md:mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No folder selected</h3>
-                  <p className="text-gray-500 mb-6 text-sm md:text-base">
-                    Choose a folder from the sidebar to view its contents
-                  </p>
-                  <Button onClick={handleAddRootFolder} size="sm">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Folder
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
+                      <TabsContent value="permissions" className="mt-0">
+                        <FolderPermissions
+                          folder={selectedFolder}
+                          onClose={() => setActiveView("files")}
+                          onUpdate={loadFolders}
+                        />
+                      </TabsContent>
+                    </Tabs>
+                  </Card>
+                </>
+              ) : (
+                <>
+                  {folders.length == 0 && activeView == 'add-folder'
+                    ? <AddFolder
+                      setForm={() => {
+                        setActiveView("files");
+                        setParentFolderId(null);
+                        loadFolders();
+                      }}
+                      setReload={loadFolders}
+                      folderId={editFolderId}
+                      parentId={parentFolderId}
+                    />
+                    : <Card className="flex-1 flex items-center justify-center">
+                      <CardContent className="text-center py-12 md:py-16">
+                        <FolderIcon className="w-12 h-12 md:w-16 md:h-16 text-gray-300 mx-auto mb-3 md:mb-4" />
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">No folder selected</h3>
+                        <p className="text-gray-500 mb-6 text-sm md:text-base">
+                          Choose a folder from the sidebar to view its contents
+                        </p>
+                        <Button onClick={handleAddRootFolder} size="sm">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Create Folder
+                        </Button>
+                      </CardContent>
+                    </Card>}
+                </>
+              )}
+            </div>
           </div>
-        </div>
+        </CardContent>
       </Container>
     </TooltipProvider>
   );

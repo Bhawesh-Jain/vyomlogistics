@@ -30,10 +30,12 @@ export default function AddFolder({
   setForm,
   setReload,
   folderId,
+  parentId
 }: {
   setForm: (form: boolean) => void,
   setReload: (reload: boolean) => void,
   folderId?: number | null,
+  parentId?: number | null,
 }) {
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(false);
@@ -110,6 +112,13 @@ export default function AddFolder({
           setDataLoading(false);
         }
       })();
+    } else if (parentId) {
+      form.reset({
+        org_id: '',
+        folder_name: '',
+        parent_id: String(parentId) ?? '',
+        status: '1'
+      });
     }
   }, [folderId]);
 
