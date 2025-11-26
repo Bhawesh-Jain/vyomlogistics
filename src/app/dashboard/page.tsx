@@ -6,16 +6,18 @@ import { ExpiringItems } from './blocks/expiring-items';
 import { QuickActions } from './blocks/quick-actions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle, Calendar, Building2 } from 'lucide-react';
-import { getCompanyFinancialSummary, getExpiringItems } from '@/lib/actions/dashboard';
+import { getAllCompaniesSummary, getCompanyFinancialSummary, getExpiringItems } from '@/lib/actions/dashboard';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CompanySelector } from './blocks/company-selector';
 import { GodownPerformance } from './blocks/godown-performance';
 import { ClientRevenue } from './blocks/client-revenue';
 import { FinancialOverview } from './blocks/financial-overview';
+import { AllCompaniesOverview } from './blocks/all-companies-overview';
 
 export default function DashboardPage() {
   const [selectedCompany, setSelectedCompany] = useState<number | null>(null);
   const [companyData, setCompanyData] = useState<any>(null);
+  const [allCompanyData, setAllCompanyData] = useState<any>(null);
   const [expiringItems, setExpiringItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -25,9 +27,10 @@ export default function DashboardPage() {
 
       try {
         setLoading(true);
-        const [companyData, expiringData] = await Promise.all([
+        const [companyData, expiringData, allCompanyData] = await Promise.all([
           getCompanyFinancialSummary(selectedCompany),
           getExpiringItems(),
+          getAllCompaniesSummary()
         ]);
 
         if (companyData.success) {
@@ -35,6 +38,9 @@ export default function DashboardPage() {
         }
         if (expiringData.success) {
           setExpiringItems(expiringData.result);
+        }
+        if (allCompanyData.success) {
+          setAllCompanyData(allCompanyData.result);
         }
       } catch (error) {
         console.error('Failed to load company data:', error);
@@ -46,7 +52,7 @@ export default function DashboardPage() {
     loadCompanyData();
   }, [selectedCompany]);
 
-  const criticalExpiring = expiringItems.filter(item => 
+  const criticalExpiring = expiringItems.filter(item =>
     item.status === 'expired' || (item.status === 'expiring' && item.daysUntilExpiry <= 7)
   );
 
@@ -57,18 +63,20 @@ export default function DashboardPage() {
         <div className="flex items-center space-x-2">
           <Calendar className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm text-muted-foreground">
-            {new Date().toLocaleDateString('en-US', { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
+            {new Date().toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
             })}
           </span>
         </div>
       </div>
 
+      {!loading && <AllCompaniesOverview data={allCompanyData} />}
+
       {/* Company Selector */}
-      <CompanySelector 
+      <CompanySelector
         selectedCompany={selectedCompany}
         onCompanyChange={setSelectedCompany}
       />
@@ -109,7 +117,7 @@ export default function DashboardPage() {
             {/* Right Sidebar - Takes 1 column */}
             <div className="space-y-4 xl:col-span-1">
               <ExpiringItems items={expiringItems} />
-              
+
               {/* Quick Stats Card */}
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
