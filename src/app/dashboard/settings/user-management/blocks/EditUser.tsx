@@ -86,7 +86,7 @@ export default function EditUser({
         setLoading(false);
       }
     })();
-  }, [toast]);
+  }, []);
 
   const defaultValues: Partial<UserFormValues> = {
     name: "",
