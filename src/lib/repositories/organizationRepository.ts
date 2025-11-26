@@ -265,10 +265,7 @@ export class OrganizationRepository extends RepositoryBase {
         .insert({
           ...data,
           updated_by: userId
-        })
-
-      console.log(data);
-
+        });
 
       if (result == 0) {
         return this.failure('Request Failed!')

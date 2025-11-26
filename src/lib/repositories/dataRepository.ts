@@ -3,7 +3,6 @@ import { RepositoryBase } from "../helpers/repository-base"
 import { FolderFormValues } from "@/app/dashboard/data-bank/blocks/AddItem";
 import { File } from "fetch-blob/file.js";
 import { deleteFileFromIdentifier, saveFile } from "../helpers/file-helper";
-import { customLog } from "../utils";
 
 export interface Folder {
   folder_id: number;
@@ -164,9 +163,6 @@ export class DataRepository extends RepositoryBase {
         folder.permissions = permissions as FolderPermissions;
       }
 
-      customLog(rootFolders);
-
-
       return this.success(rootFolders);
     } catch (error) {
       return this.handleError(error);
@@ -304,8 +300,6 @@ export class DataRepository extends RepositoryBase {
       }
 
       element.permissions = permissions as FolderPermissions;
-
-      console.log(element);
 
       return this.success(element);
     } catch (error) {
