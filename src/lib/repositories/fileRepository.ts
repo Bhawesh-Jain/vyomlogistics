@@ -22,6 +22,7 @@ export class FileRepository extends RepositoryBase {
     }
 
     async saveLog({
+        updated_by,
         associatedType,
         associatedId,
         filePath,
@@ -34,6 +35,7 @@ export class FileRepository extends RepositoryBase {
         is_protected = 0,
         transactionConnection
     }: {
+        updated_by: string,
         associatedType: string,
         associatedId: string,
         filePath: string,
@@ -62,6 +64,7 @@ export class FileRepository extends RepositoryBase {
                     file_type: fileType,
                     identifier: identifier,
                     is_protected: is_protected,
+                    updated_by: updated_by,
                     company_id: this.companyId,
                     status: 1,
                 })
@@ -99,7 +102,8 @@ export class FileRepository extends RepositoryBase {
 
     async markFileInactive(
         identifier: string,
-        transactionConnection?: mysql.Connection
+        transactionConnection?: mysql.Connection,
+        updated_by?: string | null
     ) {
         try {
             const result = await new QueryBuilder('file_log')
@@ -108,7 +112,8 @@ export class FileRepository extends RepositoryBase {
                 .orWhere('id = ?', identifier)
                 .where('status > 0')
                 .update({
-                    status: 0
+                    status: 0,
+                    updated_by,
                 })
 
             if (result == 0) {

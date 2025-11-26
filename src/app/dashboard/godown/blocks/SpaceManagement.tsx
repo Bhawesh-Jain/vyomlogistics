@@ -1,19 +1,22 @@
 "use client"
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { getAllSpaces, allocateSpace } from "@/lib/actions/warehouse";
 import { useGlobalDialog } from "@/providers/DialogProvider";
-import { MapPin, Users, Calendar, DollarSign, Square, Plus, Building2, Clock } from "lucide-react";
-import { SpaceAllocation } from "@/lib/repositories/warehouseRepository";
+import { Users, Calendar, DollarSign, Square, Plus, Building2, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import AllocateSpaceDialog from "./AllocateSpaceDialog";
+import { GodownSpaceAllocation } from "@/lib/repositories/warehouseRepository";
+import { getAllSpaces } from "@/lib/actions/warehouse";
+import { getCurrencySymbol, getStatusName } from "@/lib/utils";
+import { MoneyHelper } from "@/lib/helpers/money-helper";
+import formatDate from "@/lib/utils/date";
 
-export default function SpaceManagement({ godownId }: { godownId: number }) {
-  const [spaces, setSpaces] = useState<SpaceAllocation[]>([]);
+export default function SpaceManagement({ godownId, capacityUnit, totalArea }: { godownId: number, capacityUnit: string, totalArea: number }) {
+  const [spaces, setSpaces] = useState<GodownSpaceAllocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAllocateDialog, setShowAllocateDialog] = useState(false);
   const { showError } = useGlobalDialog();
@@ -26,7 +29,7 @@ export default function SpaceManagement({ godownId }: { godownId: number }) {
   const loadSpaces = async () => {
     setLoading(true);
     const data = await getAllSpaces(godownId);
-    
+
     if (data.success) {
       setSpaces(data.result);
     } else {
@@ -35,12 +38,12 @@ export default function SpaceManagement({ godownId }: { godownId: number }) {
     setLoading(false);
   };
 
-  const getStatusVariant = (status: string) => {
+  const getStatusVariant = (status: number) => {
     switch (status) {
-      case 'active': return 'default';
-      case 'expired': return 'destructive';
-      case 'upcoming': return 'secondary';
-      case 'terminated': return 'outline';
+      case 1: return 'default';
+      case -1: return 'destructive';
+      case 0: return 'secondary';
+      case 0: return 'outline';
       default: return 'outline';
     }
   };
@@ -100,7 +103,7 @@ export default function SpaceManagement({ godownId }: { godownId: number }) {
               </div>
               <div>
                 <div className="text-2xl font-bold">
-                  {spaces.reduce((sum, space) => Number(sum) + Number(space.allocated_area), 0)}
+                  {spaces.reduce((sum, space) => Number(sum) + Number(space.space_allocated), 0)}
                 </div>
                 <div className="text-sm text-muted-foreground">Total Allocated</div>
               </div>
@@ -116,7 +119,7 @@ export default function SpaceManagement({ godownId }: { godownId: number }) {
               </div>
               <div>
                 <div className="text-2xl font-bold">
-                  {new Set(spaces.map(space => space.allocated_to_org_id)).size}
+                  {new Set(spaces.map(space => space.org_id)).size}
                 </div>
                 <div className="text-sm text-muted-foreground">Active Companies</div>
               </div>
@@ -127,8 +130,8 @@ export default function SpaceManagement({ godownId }: { godownId: number }) {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <DollarSign className="h-4 w-4 text-orange-600" />
+              <div className="p-2 bg-orange-100 rounded-lg text-orange-600">
+                <span className="w-4 h-4">{getCurrencySymbol('INR')}</span>
               </div>
               <div>
                 <div className="text-2xl font-bold">
@@ -148,7 +151,7 @@ export default function SpaceManagement({ godownId }: { godownId: number }) {
               </div>
               <div>
                 <div className="text-2xl font-bold">
-                  {spaces.filter(space => space.status === 'active').length}
+                  {spaces.filter(space => space.status === 1).length}
                 </div>
                 <div className="text-sm text-muted-foreground">Active Allocations</div>
               </div>
@@ -168,63 +171,62 @@ export default function SpaceManagement({ godownId }: { godownId: number }) {
                     <Square className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg">{space.space_name}</h3>
-                    <p className="text-sm text-muted-foreground">Code: {space.space_code}</p>
+                    <span className="font-semibold text-lg">{space.org_name}</span>
                   </div>
                   <Badge variant={getStatusVariant(space.status)}>
-                    {space.status.toUpperCase()}
+                    {getStatusName(String(space.status))}
                   </Badge>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <div className="font-medium">{space.company_name}</div>
-                      <div className="text-xs text-muted-foreground">Company</div>
+                      <div className="font-medium">{space.contact_person}</div>
+                      <div className="text-xs text-muted-foreground">Contact Person</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Square className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <div className="font-medium">{space.allocated_area} {space.capacity_unit}</div>
+                      <div className="font-medium">{space.space_allocated} {capacityUnit}</div>
                       <div className="text-xs text-muted-foreground">Allocated Area</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <div className="font-medium">{space.currency} {space.monthly_rent?.toLocaleString()}</div>
+                      <div className="font-medium">{MoneyHelper.formatRupees(space.monthly_rent)}</div>
                       <div className="text-xs text-muted-foreground">Monthly Rent</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <div className="font-medium">{new Date(space.allocation_end_date).toLocaleDateString()}</div>
-                      <div className="text-xs text-muted-foreground">Valid Until</div>
+                      <div className="font-medium">{formatDate(space.created_on)}</div>
+                      <div className="text-xs text-muted-foreground">Allocated On</div>
                     </div>
                   </div>
                 </div>
 
-                {space.agreement_id && (
+                {space.valid_upto && (
                   <div className="text-sm text-muted-foreground">
-                    Agreement: {`#${space.agreement_id}`}
+                    Agreement Valid Upto: {formatDate(space.valid_upto)}
                   </div>
                 )}
               </div>
 
               <div className="ml-6 text-right min-w-[120px]">
                 <div className="text-sm font-medium mb-2">Utilization</div>
-                <Progress 
-                  value={(space.utilized_area / space.allocated_area) * 100} 
-                  className={`w-24 h-2 ${getUtilizationColor((space.utilized_area / space.allocated_area) * 100)}`}
+                <Progress
+                  value={(space.space_allocated / totalArea) * 100}
+                  className={`w-24 h-2 ${getUtilizationColor((space.space_allocated / totalArea) * 100)}`}
                 />
                 <div className="text-xs text-muted-foreground mt-1">
-                  {space.utilized_area} / {space.allocated_area} {space.capacity_unit}
+                  {space.space_allocated} / {totalArea} {capacityUnit}
                 </div>
                 <div className="text-sm font-medium mt-2">
-                  {((space.utilized_area / space.allocated_area) * 100).toFixed(1)}%
+                  {((space.space_allocated / totalArea) * 100).toFixed(1)}%
                 </div>
               </div>
             </div>

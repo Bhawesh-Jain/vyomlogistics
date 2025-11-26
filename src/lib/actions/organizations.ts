@@ -5,6 +5,7 @@ import { OrganizationRepository } from "../repositories/organizationRepository";
 import { getSession } from "../session";
 import { LicenseFormValues } from "@/app/dashboard/organizations/licenses/blocks/AddItem";
 import { AgreementFormValues } from "@/app/dashboard/organizations/agreements/blocks/AddItem";
+import { InvoiceUiItems } from "@/app/dashboard/organizations/companies/blocks/ManageItem";
 
 export async function getAllOrganizations() {
   const session = await getSession();
@@ -13,11 +14,18 @@ export async function getAllOrganizations() {
   return await userRepository.getAllOrganizations();
 }
 
-export async function getOrganizationById(id: number) {
+export async function getActiveAgreements() {
   const session = await getSession();
 
   const userRepository = new OrganizationRepository(session.user_id);
-  return await userRepository.getOrganizationById(id);
+  return await userRepository.getActiveAgreements();
+}
+
+export async function getOrganizationById({ id, withInvoice }: { id: number, withInvoice?: boolean }) {
+  const session = await getSession();
+
+  const userRepository = new OrganizationRepository(session.user_id);
+  return await userRepository.getOrganizationById({ id, withInvoice });
 }
 
 export async function addOrganization(data: OrganizationFormValues) {
@@ -109,4 +117,18 @@ export async function deleteAgreement(id: number) {
 
   const userRepository = new OrganizationRepository(session.user_id);
   return await userRepository.deleteAgreement(id, session.user_id);
+}
+
+export async function getServiceNames() {
+  const session = await getSession();
+
+  const userRepository = new OrganizationRepository(session.user_id);
+  return await userRepository.getServiceNames();
+}
+
+export async function saveOrganizationServices(orgId: number, services: InvoiceUiItems[], notes?: string) {
+  const session = await getSession();
+
+  const userRepository = new OrganizationRepository(session.user_id);
+  return await userRepository.saveOrganizationServices(orgId, services, notes);
 }

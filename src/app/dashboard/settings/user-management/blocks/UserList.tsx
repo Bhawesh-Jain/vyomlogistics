@@ -7,7 +7,7 @@ import { Heading, Paragraph, SubHeading } from "@/components/text/heading";
 import { Role } from "@/lib/repositories/accessRepository";
 import AddUser from "./AddUser";
 import formatDate from "@/lib/utils/date";
-import { getUserDisplayClass, getUserStatus } from "@/lib/utils/user";
+import { getUserDisplayClass, getUserStatus } from "@/lib/utils/common";
 import { cn } from "@/lib/utils";
 import { Button, ButtonTooltip } from "@/components/ui/button";
 import { Edit2, Lock } from "lucide-react";

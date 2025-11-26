@@ -11,7 +11,7 @@ import Loading from "@/app/dashboard/loading";
 import { DefaultFormTextField, DefaultFormTextArea } from "@/components/ui/default-form-field";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Container } from "@/components/ui/container";
-import { Building2, MapPin, Phone, Globe, FileText } from "lucide-react";
+import { Building2, MapPin, Phone, Globe, FileText, PiggyBank } from "lucide-react";
 import { zodPatterns } from "@/lib/utils/zod-patterns";
 import { addCompany, updatedCompany, getCompanyById } from "@/lib/actions/settings";
 import { Company } from "@/lib/repositories/companyRepository";
@@ -19,9 +19,9 @@ import { Company } from "@/lib/repositories/companyRepository";
 // Zod schema for company_master table
 const formSchema = z.object({
   company_name: z.string().min(1, 'Enter company name'),
-  abbr: z.string().min(1, 'Enter abbreviation').max(10, 'Abbreviation must be 10 characters or less'),
-  currency: z.string().min(1, 'Enter currency'),
-  currency_symbol: z.string().min(1, 'Enter currency symbol').max(1, 'Currency symbol must be 1 character'),
+  // abbr: z.string().min(1, 'Enter abbreviation').max(10, 'Abbreviation must be 10 characters or less'),
+  // currency: z.string().min(1, 'Enter currency'),
+  // currency_symbol: z.string().min(1, 'Enter currency symbol').max(1, 'Currency symbol must be 1 character'),
   phone: z.string().min(10, 'Enter valid phone number').max(15, 'Phone number too long'),
   email: z.string().email('Enter valid email address'),
   web_address: z.string().url('Enter valid URL').or(z.literal('')),
@@ -31,9 +31,12 @@ const formSchema = z.object({
   state: z.string().min(1, 'Enter state'),
   pincode: z.string().min(1, 'Enter pincode').max(8, 'Pincode must be 8 characters or less'),
   country: z.string().min(1, 'Enter country'),
-  corporate_address: z.string().min(1, 'Enter corporate address'),
-  corporate_phone: z.string().min(10, 'Enter valid corporate phone').max(15, 'Phone number too long'),
+  // corporate_address: z.string().min(1, 'Enter corporate address'),
+  // corporate_phone: z.string().min(10, 'Enter valid corporate phone').max(15, 'Phone number too long'),
   company_description: z.string().optional(),
+  account_number: zodPatterns.numberString.schema().optional(),
+  ifsc: zodPatterns.ifsc.schema().optional(),
+  bank_name: z.string().optional(),
   is_active: z.enum(['1', '0']).default('1')
 });
 
@@ -58,9 +61,9 @@ export default function AddCompany({
     resolver: zodResolver(formSchema),
     defaultValues: {
       company_name: '',
-      abbr: '',
-      currency: 'INR',
-      currency_symbol: '₹',
+      // abbr: '',
+      // currency: 'INR',
+      // currency_symbol: '₹',
       phone: '',
       email: '',
       web_address: '',
@@ -70,8 +73,8 @@ export default function AddCompany({
       state: '',
       pincode: '',
       country: 'India',
-      corporate_address: '',
-      corporate_phone: '',
+      // corporate_address: '',
+      // corporate_phone: '',
       company_description: '',
       is_active: '1'
     },
@@ -84,17 +87,17 @@ export default function AddCompany({
         setDataLoading(true);
         try {
           const result = await getCompanyById(companyId);
-          
+
           if (result.success && result.result.length > 0) {
             const company = result.result[0];
             setCompanyData(company);
-            
+
             // Reset form with fetched data
             form.reset({
               company_name: company.company_name ?? '',
-              abbr: company.abbr ?? '',
-              currency: company.currency ?? 'INR',
-              currency_symbol: company.currency_symbol ?? '₹',
+              // abbr: company.abbr ?? '',
+              // currency: company.currency ?? 'INR',
+              // currency_symbol: company.currency_symbol ?? '₹',
               phone: company.phone ?? '',
               email: company.email ?? '',
               web_address: company.web_address ?? '',
@@ -103,9 +106,12 @@ export default function AddCompany({
               city: company.city ?? '',
               state: company.state ?? '',
               pincode: company.pincode ?? '',
+              ifsc: company.ifsc ?? '',
+              bank_name: company.bank_name ?? '',
+              account_number: company.account_number ?? '',
               country: company.country ?? 'India',
-              corporate_address: company.corporate_address ?? '',
-              corporate_phone: company.corporate_phone ?? '',
+              // corporate_address: company.corporate_address ?? '',
+              // corporate_phone: company.corporate_phone ?? '',
               company_description: company.company_description ?? '',
               is_active: company.is_active?.toString() ?? '1'
             });
@@ -132,7 +138,7 @@ export default function AddCompany({
   async function onSubmit(data: CompanyFormValues) {
     setLoading(true);
     try {
-      const result = companyId 
+      const result = companyId
         ? await updatedCompany(companyId, data)
         : await addCompany(data);
 
@@ -178,13 +184,14 @@ export default function AddCompany({
                 </CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                
-                <DefaultFormTextField 
-                  form={form} 
-                  name="company_name" 
-                  label="Company Name" 
-                  placeholder="Enter company name" 
+
+                <DefaultFormTextField
+                  form={form}
+                  name="company_name"
+                  label="Company Name"
+                  placeholder="Enter company name"
                 />
+                {/*
                 <DefaultFormTextField 
                   form={form} 
                   name="abbr" 
@@ -203,6 +210,7 @@ export default function AddCompany({
                   label="Currency Symbol" 
                   placeholder="e.g., ₹" 
                 />
+                */}
               </CardContent>
             </Card>
 
@@ -214,24 +222,24 @@ export default function AddCompany({
                 </CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <DefaultFormTextField 
-                  form={form} 
-                  name="phone" 
-                  label="Phone Number" 
-                  placeholder="Enter phone number" 
+                <DefaultFormTextField
+                  form={form}
+                  name="phone"
+                  label="Phone Number"
+                  placeholder="Enter phone number"
                 />
-                <DefaultFormTextField 
-                  form={form} 
-                  name="email" 
-                  label="Email Address" 
-                  placeholder="Enter email address" 
+                <DefaultFormTextField
+                  form={form}
+                  name="email"
+                  label="Email Address"
+                  placeholder="Enter email address"
                 />
                 <div className="md:col-span-2">
-                  <DefaultFormTextField 
-                    form={form} 
-                    name="web_address" 
-                    label="Website" 
-                    placeholder="https://example.com" 
+                  <DefaultFormTextField
+                    form={form}
+                    name="web_address"
+                    label="Website"
+                    placeholder="https://example.com"
                   />
                 </div>
               </CardContent>
@@ -245,44 +253,73 @@ export default function AddCompany({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <DefaultFormTextArea 
-                  form={form} 
-                  name="address" 
-                  label="Address" 
-                  placeholder="Enter complete address" 
-                  className="resize-none" 
+                <DefaultFormTextArea
+                  form={form}
+                  name="address"
+                  label="Address"
+                  placeholder="Enter complete address"
+                  className="resize-none"
                 />
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <DefaultFormTextField 
-                    form={form} 
-                    name="city" 
-                    label="City" 
-                    placeholder="Enter city" 
+                  <DefaultFormTextField
+                    form={form}
+                    name="city"
+                    label="City"
+                    placeholder="Enter city"
                   />
-                  <DefaultFormTextField 
-                    form={form} 
-                    name="state" 
-                    label="State" 
-                    placeholder="Enter state" 
+                  <DefaultFormTextField
+                    form={form}
+                    name="state"
+                    label="State"
+                    placeholder="Enter state"
                   />
-                  <DefaultFormTextField 
-                    form={form} 
-                    name="pincode" 
-                    label="Pincode" 
-                    placeholder="Enter pincode" 
+                  <DefaultFormTextField
+                    form={form}
+                    name="pincode"
+                    label="Pincode"
+                    placeholder="Enter pincode"
                   />
-                  <DefaultFormTextField 
-                    form={form} 
-                    name="country" 
-                    label="Country" 
-                    placeholder="Enter country" 
+                  <DefaultFormTextField
+                    form={form}
+                    name="country"
+                    label="Country"
+                    placeholder="Enter country"
                   />
                 </div>
               </CardContent>
             </Card>
 
-            {/* Corporate Address */}
+            {/* Bank Details */}
             <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PiggyBank className="h-5 w-5" /> Bank Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <DefaultFormTextField
+                  form={form}
+                  name="bank_name"
+                  label="Bank Name"
+                  placeholder="Enter bank name"
+                />
+                <DefaultFormTextField
+                  form={form}
+                  name="ifsc"
+                  label="IFSC"
+                  placeholder="Enter bank IFSC"
+                />
+                <DefaultFormTextField
+                  form={form}
+                  name="account_number"
+                  label="Account Number"
+                  placeholder="Enter bank account number"
+                />
+              </CardContent>
+            </Card>
+
+            {/* Corporate Address */}
+            {/* <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <MapPin className="h-5 w-5" /> Corporate Address
@@ -303,7 +340,7 @@ export default function AddCompany({
                   placeholder="Enter corporate phone number" 
                 />
               </CardContent>
-            </Card>
+            </Card> */}
 
             {/* Additional Information */}
             <Card>
@@ -313,21 +350,21 @@ export default function AddCompany({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <DefaultFormTextArea 
-                  form={form} 
-                  name="company_description" 
-                  label="Company Description" 
-                  placeholder="Enter company description (optional)" 
-                  className="resize-none min-h-[100px]" 
+                <DefaultFormTextArea
+                  form={form}
+                  name="company_description"
+                  label="Company Description"
+                  placeholder="Enter company description (optional)"
+                  className="resize-none min-h-[100px]"
                 />
               </CardContent>
             </Card>
 
             {/* Submit Button */}
             <div className="flex justify-end gap-4">
-              <Button 
-                type="button" 
-                variant="outline" 
+              <Button
+                type="button"
+                variant="outline"
                 onClick={() => setForm(false)}
               >
                 Cancel

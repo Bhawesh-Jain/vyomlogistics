@@ -31,6 +31,26 @@ export function getStatusColor(status: string) {
   }
 }
 
+export function getStatusName(status: string) {
+  var s = status.toString().trim();
+  switch (s) {
+    case "-10":
+      return "Deleted";
+    case "-1":
+      return "Rejected";
+    case "0":
+      return "Inactive";
+    case "1":
+      return "Active";
+    case "10":
+      return "Completed";
+    case "100":
+      return "Successful";
+    default:
+      return "";
+  }
+}
+
 
 export function formatFileSize(file_size: string): string {
   const bytes = parseInt(file_size);
@@ -40,4 +60,22 @@ export function formatFileSize(file_size: string): string {
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
 
   return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+export function getCurrencySymbol(currency: string): string {
+  const currencySymbols: { [key: string]: string } = {
+    USD: '$',
+    EUR: '€',
+    GBP: '£',
+    INR: '₹',
+    JPY: '¥',
+    CNY: '¥',
+    AUD: 'A$',
+    CAD: 'C$',
+    CHF: 'CHF',
+    SEK: 'kr',
+    NZD: 'NZ$',
+  };
+
+  return currencySymbols[currency] || currency;
 }

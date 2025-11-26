@@ -40,6 +40,7 @@ export interface FileLog {
     path: string;
     is_protected: number;
     status: number;
+    updated_by: number;
     created_on: Date;
     updated_on: Date;
     file_size: string;
@@ -53,6 +54,7 @@ export async function saveFile(
     fileName: string,
     associatedId = '',
     associatedType = '',
+    updated_by: string | null = null,
     dirPath = '',
     addedFrom = 'Frontend',
     isProtected = 0,
@@ -84,6 +86,7 @@ export async function saveFile(
         await fsPromises.writeFile(targetPath, bufferData);
 
         var logResult = await new FileRepository(DEFAULT_COMPANY_ID).saveLog({
+            updated_by: updated_by ?? '1',
             associatedType,
             associatedId,
             filePath: targetPath,
@@ -142,6 +145,7 @@ export async function deleteFile(
     fileName: string,
     dirPath = '',
     identifier: string,
+    userId: string | null = null,
     hardDelete: boolean = DEFAULT_HARD_DELETE
 ): Promise<{ message: string; success: true } | ErrorResult> {
     const uploadDir = dirPath || DEFAULT_UPLOAD_DIR;
@@ -152,7 +156,7 @@ export async function deleteFile(
     }
 
     try {
-        var logResult = await new FileRepository(DEFAULT_COMPANY_ID).markFileInactive(identifier);
+        var logResult = await new FileRepository(DEFAULT_COMPANY_ID).markFileInactive(identifier, undefined, userId);
 
         if (!logResult.success) {
             return { error: logResult.error, success: false };
@@ -174,6 +178,7 @@ export async function deleteFile(
  */
 export async function deleteFileFromIdentifier(
     identifier: string,
+    userId: string | null = null,
     transaction: any = null,
     hardDelete: boolean = DEFAULT_HARD_DELETE,
 ): Promise<{ message: string; success: true } | ErrorResult> {
@@ -190,8 +195,7 @@ export async function deleteFileFromIdentifier(
     const filePath = path.join(uploadDir, fileName);
     try {
 
-        var logResult = await new FileRepository(DEFAULT_COMPANY_ID).markFileInactive(identifier, transaction);
-
+        var logResult = await new FileRepository(DEFAULT_COMPANY_ID).markFileInactive(identifier, transaction, userId);
         if (!fs.existsSync(filePath)) {
             return { error: 'File not found', success: false };
         }

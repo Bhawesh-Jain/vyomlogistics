@@ -8,24 +8,21 @@ import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { DefaultFormTextField, DefaultFormSelect, DefaultFormDatePicker } from "@/components/ui/default-form-field";
-import { allocateSpace } from "@/lib/actions/warehouse";
-import { getAllOrganizations } from "@/lib/actions/organizations";
-import { Organization } from "@/lib/repositories/organizationRepository";
+import { DefaultFormTextField, DefaultFormSelect, DefaultFormDatePicker, SpinnerItem } from "@/components/ui/default-form-field";
+import { getActiveAgreements, getAllOrganizations } from "@/lib/actions/organizations";
+import { Agreement, Organization } from "@/lib/repositories/organizationRepository";
 import { useEffect } from "react";
+import { allocateSpace } from "@/lib/actions/warehouse";
+import formatDate from "@/lib/utils/date";
 
 const allocationSchema = z.object({
-  allocated_to_org_id: z.string().min(1, 'Select company'),
-  space_name: z.string().min(1, 'Enter space name'),
-  space_code: z.string().min(1, 'Enter space code'),
-  allocated_area: z.string().min(1, 'Enter area').refine(val => !isNaN(parseFloat(val)) && parseFloat(val) > 0, 'Must be a positive number'),
+  org_id: z.string().min(1, 'Select company'),
+  space_allocated: z.string().min(1, 'Enter area').refine(val => !isNaN(parseFloat(val)) && parseFloat(val) > 0, 'Must be a positive number'),
   monthly_rent: z.string().min(1, 'Enter monthly rent').refine(val => !isNaN(parseFloat(val)) && parseFloat(val) > 0, 'Must be a positive number'),
-  allocation_start_date: z.date(),
-  allocation_end_date: z.date(),
   agreement_id: z.string().optional(),
 });
 
-type AllocationFormValues = z.infer<typeof allocationSchema>;
+export type AllocationFormValues = z.infer<typeof allocationSchema>;
 
 interface AllocateSpaceDialogProps {
   open: boolean;
@@ -36,18 +33,16 @@ interface AllocateSpaceDialogProps {
 
 export default function AllocateSpaceDialog({ open, onOpenChange, godownId, onSuccess }: AllocateSpaceDialogProps) {
   const [loading, setLoading] = useState(false);
-  const [organizations, setOrganizations] = useState<{label: string; value: string}[]>([]);
+  const [organizations, setOrganizations] = useState<SpinnerItem[]>([]);
+  const [agreements, setAgreements] = useState<SpinnerItem[]>([]);
   const { toast } = useToast();
 
   const form = useForm<AllocationFormValues>({
     resolver: zodResolver(allocationSchema),
     defaultValues: {
-      space_name: '',
-      space_code: '',
-      allocated_area: '',
+      org_id: '',
+      space_allocated: '',
       monthly_rent: '',
-      allocation_start_date: new Date(),
-      allocation_end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
       agreement_id: '',
     },
   });
@@ -60,6 +55,7 @@ export default function AllocateSpaceDialog({ open, onOpenChange, godownId, onSu
 
   const loadOrganizations = async () => {
     const orgs = await getAllOrganizations();
+    const agreementRes = await getActiveAgreements();
     if (orgs.success) {
       const formattedData = orgs.result.map((item: Organization) => ({
         label: item.org_name,
@@ -67,15 +63,19 @@ export default function AllocateSpaceDialog({ open, onOpenChange, godownId, onSu
       }));
       setOrganizations(formattedData);
     }
+    if (agreementRes.success) {
+      const formattedData = agreementRes.result.map((item: Agreement) => ({
+        label: item.org_name + " " + formatDate(item.created_on),
+        value: item.agreement_id.toString(),
+      }));
+      setAgreements(formattedData);
+    }
   };
 
   async function onSubmit(data: AllocationFormValues) {
     setLoading(true);
     try {
-      const result = await allocateSpace({
-        ...data,
-        godown_id: godownId,
-      });
+      const result = await allocateSpace(data, godownId);
 
       if (result.success) {
         onSuccess();
@@ -108,31 +108,19 @@ export default function AllocateSpaceDialog({ open, onOpenChange, godownId, onSu
           </DialogDescription>
         </DialogHeader>
 
-        <Form {...form}>
+        <Form {...form} >
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <DefaultFormSelect
                 form={form}
-                name="allocated_to_org_id"
+                name="org_id"
                 label="Company"
                 placeholder="Select company"
                 options={organizations}
               />
               <DefaultFormTextField
                 form={form}
-                name="space_name"
-                label="Space Name"
-                placeholder="e.g., Section A, Bay 1"
-              />
-              <DefaultFormTextField
-                form={form}
-                name="space_code"
-                label="Space Code"
-                placeholder="e.g., A1, B2"
-              />
-              <DefaultFormTextField
-                form={form}
-                name="allocated_area"
+                name="space_allocated"
                 label="Area"
                 placeholder="Enter area in sqft"
               />
@@ -142,22 +130,12 @@ export default function AllocateSpaceDialog({ open, onOpenChange, godownId, onSu
                 label="Monthly Rent"
                 placeholder="Enter monthly rent"
               />
-              <DefaultFormDatePicker
-                form={form}
-                name="allocation_start_date"
-                label="Start Date"
-              />
-              <DefaultFormDatePicker
-                form={form}
-                name="allocation_end_date"
-                label="End Date"
-              />
               <DefaultFormSelect
                 form={form}
                 name="agreement_id"
                 label="Agreement (Optional)"
                 placeholder="Select agreement"
-                options={[]} // You can populate this with active agreements
+                options={agreements}
               />
             </div>
 

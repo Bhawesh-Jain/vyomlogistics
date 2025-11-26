@@ -9,7 +9,7 @@ const Container = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "py-2 px-2 md:px-4 space-y-2",
+      "py-1 px-2 md:px-1 space-y-0",
       className
     )}
     {...props}

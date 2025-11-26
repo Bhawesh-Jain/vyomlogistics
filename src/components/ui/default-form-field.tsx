@@ -4,6 +4,11 @@ import { Input } from "./input";
 import { Select, SelectValue, SelectTrigger, SelectContent, SelectItem } from "./select";
 import { Textarea } from "./textarea";
 
+export interface SpinnerItem {
+  label: string;
+  value: string;
+}
+
 export function DefaultFormTextField({
   label,
   name,
@@ -33,9 +38,12 @@ export function DefaultFormTextField({
           <FormControl>
             <Input
               disabled={disabled}
-              placeholder={placeholder} 
+              placeholder={placeholder}
               step={step}
               {...field}
+              onFocus={(e) => {
+                e.target.select();
+              }}
               value={field.value || ''}
               onChange={(e) => {
                 const value = uppercase
@@ -76,7 +84,7 @@ export function DefaultFormTimeField({
         <FormItem>
           <FormLabel>{label}</FormLabel>
           <FormControl>
-            <Input type="time" placeholder={placeholder} {...field} autoCapitalize="characters"/>
+            <Input type="time" placeholder={placeholder} {...field} autoCapitalize="characters" />
           </FormControl>
           <FormMessage />
         </FormItem>
@@ -118,18 +126,21 @@ export function DefaultFormTextArea({
 };
 
 
+
 export function DefaultFormSelect({
   label,
   name,
   placeholder = '',
   options,
   form,
+  disabled = false,
 }: {
   label: string,
   name: string,
   options: any[],
   placeholder?: string,
   form: any,
+  disabled?: boolean
 }) {
   return (
     <FormField
@@ -143,6 +154,7 @@ export function DefaultFormSelect({
               onValueChange={field.onChange}
               value={String(field.value)}
               defaultValue={String(field.value)}
+              disabled={disabled}
               form={form}
             >
               <SelectTrigger>

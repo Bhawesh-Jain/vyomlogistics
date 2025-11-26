@@ -205,7 +205,7 @@ export default function AddOrganizationLicense({
                 <DefaultFormTextField
                   form={form}
                   name="business_type"
-                  label="Business Type"
+                  label="License Type"
                   placeholder="e.g., Transportation, Logistics"
                 />
                 <DefaultFormTextField
