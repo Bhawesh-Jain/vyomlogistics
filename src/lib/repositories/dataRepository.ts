@@ -2,7 +2,7 @@ import { executeQuery, QueryBuilder } from "../helpers/db-helper";
 import { RepositoryBase } from "../helpers/repository-base"
 import { FolderFormValues } from "@/app/dashboard/data-bank/blocks/AddItem";
 import { File } from "fetch-blob/file.js";
-import { saveFile } from "../helpers/file-helper";
+import { deleteFileFromIdentifier, saveFile } from "../helpers/file-helper";
 import { customLog } from "../utils";
 
 export interface Folder {
@@ -10,13 +10,6 @@ export interface Folder {
   folder_name: string;
 
   parent_id: number;
-
-  company_id: number;
-  company_name: string;
-  abbr: string;
-
-  org_id: number;
-  org_name: string;
 
   status: number;
 
@@ -61,12 +54,8 @@ export class DataRepository extends RepositoryBase {
   async getFolderList(flat: boolean = false) {
     try {
       const sql = `
-      SELECT df.*,
-        cm.company_name, cm.abbr,
-        o.org_name
+      SELECT df.*
       FROM data_folders df
-      LEFT JOIN organizations o ON o.org_id = df.org_id
-      LEFT JOIN company_master cm ON o.company_id = cm.company_id
       WHERE df.status = 1
       ORDER BY df.folder_id ASC
     `;
@@ -120,7 +109,7 @@ export class DataRepository extends RepositoryBase {
         let permissions = await new QueryBuilder('folder_permissions')
           .where('folder_id = ?', folder.folder_id)
           .where('user_id = ?', this.userId)
-          .selectOne(['permission_array']) as FolderPermissions;
+          .selectOne(['can_create_subfolder', 'can_upload_file', 'can_download_file', 'can_rename', 'can_delete']) as FolderPermissions;
 
         if (permissions == null) {
           if (this.userId == '501' || this.userId == '502') {
@@ -145,6 +134,9 @@ export class DataRepository extends RepositoryBase {
         folder.permissions = permissions;
       }
 
+      console.log(rootFolders);
+      
+
       return this.success(rootFolders);
     } catch (error) {
       return this.handleError(error);
@@ -154,12 +146,8 @@ export class DataRepository extends RepositoryBase {
   async getFolderById(folderId: number) {
     try {
       let sql = `
-        SELECT df.*,
-          cm.company_name, cm.abbr, cm.company_id,
-          o.org_name
+        SELECT df.*
         FROM data_folders df
-        LEFT JOIN organizations o ON o.org_id = df.org_id
-        LEFT JOIN company_master cm ON o.company_id = cm.company_id
         WHERE df.status = 1
           AND df.folder_id = ?
         LIMIT 1
@@ -182,6 +170,35 @@ export class DataRepository extends RepositoryBase {
 
       element.files = files as DataFile[];
 
+      let permissions = await new QueryBuilder('folder_permissions')
+        .where('folder_id = ?', folderId)
+        .where('user_id = ?', this.userId)
+        .selectOne(['can_create_subfolder', 'can_upload_file', 'can_download_file', 'can_rename', 'can_delete']) as FolderPermissions;
+
+      if (permissions == null) {
+        if (this.userId == '501' || this.userId == '502') {
+          permissions = {
+            can_create_subfolder: true,
+            can_upload_file: true,
+            can_download_file: true,
+            can_rename: true,
+            can_delete: true,
+          };
+        } else {
+          permissions = {
+            can_create_subfolder: false,
+            can_upload_file: false,
+            can_download_file: false,
+            can_rename: false,
+            can_delete: false,
+          };
+        }
+      }
+
+      element.permissions = permissions;
+
+      console.log(element);
+      
 
       return this.success(element);
     } catch (error) {
@@ -243,6 +260,19 @@ export class DataRepository extends RepositoryBase {
       }
 
       await saveFile(file, file.name, folderId.toString(), 'data_file', './uploads/data-bank/', 'user-web-upload')
+
+      return this.success('File Uploaded Successfully');
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async deleteDataFile(
+    fileId: number
+  ) {
+    try {
+
+      await deleteFileFromIdentifier(fileId.toString())
 
       return this.success('File Uploaded Successfully');
     } catch (error) {

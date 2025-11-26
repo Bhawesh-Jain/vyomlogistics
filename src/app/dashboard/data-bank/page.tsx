@@ -19,7 +19,6 @@ import {
   X,
   Home,
   Users,
-  Key,
   Menu
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -43,7 +42,7 @@ import { cn, formatFileSize } from "@/lib/utils";
 import AddFolder from "./blocks/AddItem";
 import { useGlobalDialog } from "@/providers/DialogProvider";
 import FolderPermissions from "./blocks/FolderPermissions";
-import { ScrollBar } from "@/components/ui/scroll-area";
+import { toast } from "@/hooks/use-toast";
 
 type ExpandMap = Record<number, boolean>;
 type ViewMode = "grid" | "list";
@@ -71,7 +70,6 @@ export default function DataBankModern() {
   const [loadingFolderDetails, setLoadingFolderDetails] = useState<number | null>(null);
 
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
-  const { showError, showSuccess } = useGlobalDialog();
 
   const loadFolders = useCallback(async () => {
     try {
@@ -95,10 +93,18 @@ export default function DataBankModern() {
           setSelectedFolderId(resp.result[0].folder_id);
         }
       } else {
-        showError("Failed to load folders", "");
+        toast({
+          title: "Error",
+          description: resp.error || "Failed to load folders",
+          variant: "destructive"
+        });
       }
     } catch (err) {
-      showError("Unexpected error while loading folders", "");
+      toast({
+        title: "Error",
+        description: "Unexpected error while loading folders",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
@@ -141,7 +147,11 @@ export default function DataBankModern() {
         setFolders(prev => updateInTree(prev));
       }
     } catch (err) {
-      showError("Failed to load folder details", "");
+      toast({
+        title: "Error",
+        description: "Failed to load folder details",
+        variant: "destructive"
+      });
     } finally {
       setLoadingFolderDetails(null);
     }
@@ -185,7 +195,11 @@ export default function DataBankModern() {
       setRefreshingFolder(folderId);
       const resp = await getFolderById(folderId);
       if (!resp.success) {
-        showError("Failed to refresh folder", "");
+        toast({
+          title: "Error",
+          description: "Failed to refresh folder",
+          variant: "destructive"
+        });
         return;
       }
       const updated = resp.result as Folder;
@@ -205,13 +219,21 @@ export default function DataBankModern() {
         });
 
       setFolders((prev) => replace(prev));
-      showSuccess("Folder refreshed", "");
+      toast({
+        title: "Success",
+        description: "Folder refreshed",
+        variant: "default"
+      });
     } catch (err) {
-      showError("Unexpected error while refreshing", "");
+      toast({
+        title: "Error",
+        description: "Unexpected error while refreshing",
+        variant: "destructive"
+      });
     } finally {
       setRefreshingFolder(null);
     }
-  }, [showError, showSuccess]);
+  }, []);
 
   const uploadFile = useCallback(async (folderId: number, file: File) => {
     try {
@@ -219,17 +241,29 @@ export default function DataBankModern() {
 
       const folder = folderCache[folderId];
       if (folder && !folder.permissions?.can_upload_file) {
-        showError("You don't have permission to upload files to this folder", "");
+        toast({
+          title: "Error",
+          description: "You don't have permission to upload files to this folder",
+          variant: "destructive"
+        });
         return;
       }
 
       const isValidExt = /\.(xlsx?|csv)$/i.test(file.name);
       if (!isValidExt) {
-        showError("Only Excel/CSV files are allowed", "");
+        toast({
+          title: "Error",
+          description: "Only Excel/CSV files are allowed",
+          variant: "destructive"
+        });
         return;
       }
       if (file.size > 10 * 1024 * 1024) {
-        showError("File must be smaller than 10MB", "");
+        toast({
+          title: "Error",
+          description: "File must be smaller than 10MB",
+          variant: "destructive"
+        });
         return;
       }
 
@@ -242,16 +276,28 @@ export default function DataBankModern() {
       const resp = await uploadDataFile(folderId, data);
       if (resp.success) {
         await refreshFolder(folderId);
-        showSuccess("File uploaded successfully", "");
+        toast({
+          title: "Success",
+          description: "File uploaded successfully",
+          variant: "default"
+        });
       } else {
-        showError("Upload failed", "");
+        toast({
+          title: "Error",
+          description: "Upload failed",
+          variant: "destructive"
+        });
       }
     } catch (err) {
-      showError("Unexpected error while uploading", "");
+      toast({
+        title: "Error",
+        description: "Unexpected error while uploading",
+        variant: "destructive"
+      });
     } finally {
       setUploadingFor(null);
     }
-  }, [refreshFolder, showError, showSuccess, folderCache]);
+  }, [refreshFolder, folderCache]);
 
   const onFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>, folderId: number) => {
     const file = e.target.files?.[0];
@@ -263,31 +309,49 @@ export default function DataBankModern() {
     const t = term.trim().toLowerCase();
     if (!t) return true;
     if (folder.folder_name.toLowerCase().includes(t)) return true;
-    if (folder.org_name?.toLowerCase().includes(t)) return true;
     if (folder.files.some((f) => f.file_name.toLowerCase().includes(t))) return true;
     if (folder.sub_folders?.some((sf) => matchesSearch(sf, t))) return true;
     return false;
   }, []);
 
   const filteredFolders = useMemo(() => {
-    if (!searchTerm.trim()) return folders;
-    return folders.filter((f) => matchesSearch(f, searchTerm));
+    const trimmedTerm = searchTerm.trim();
+    if (!trimmedTerm) return folders;
+
+    return folders.filter((f) => matchesSearch(f, trimmedTerm));
   }, [folders, searchTerm, matchesSearch]);
 
   const toggleExpand = useCallback((id: number) => {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
   }, []);
 
+  const setFileInputRef = useCallback((folderId: number, el: HTMLInputElement | null) => {
+    if (el) {
+      fileInputRefs.current[folderId] = el;
+    }
+  }, []);
+
   const openFileInput = useCallback((folderId: number) => {
-    fileInputRefs.current[folderId]?.click();
+    const input = fileInputRefs.current[folderId];
+    if (input) {
+      input.click();
+    }
   }, []);
 
   const handleAddSubfolder = useCallback((folderId: number) => {
+    setEditFolderId(null);
     setParentFolderId(folderId);
     setActiveView("add-folder");
   }, []);
 
+  const handleEditFolder = useCallback((folderId: number) => {
+    setEditFolderId(folderId);
+    setParentFolderId(null);
+    setActiveView("add-folder");
+  }, []);
+
   const handleAddRootFolder = useCallback(() => {
+    setEditFolderId(null);
     setParentFolderId(null);
     setActiveView("add-folder");
   }, []);
@@ -322,9 +386,9 @@ export default function DataBankModern() {
           {folder.folder_name.replace(/_/g, " ")}
         </div>
       </TooltipTrigger>
-      <TooltipContent>
+      <TooltipContent className="text-primary-foreground">
         <p>{folder.folder_name.replace(/_/g, " ")}</p>
-        {folder.org_name && <p className="text-xs text-gray-400">{folder.org_name}</p>}
+        {folder.updated_on && <p className="text-xs text-gray-400">Last Updated: {formatDateTime(folder.updated_on)}</p>}
       </TooltipContent>
     </Tooltip>
   ), []);
@@ -336,6 +400,14 @@ export default function DataBankModern() {
     const isUploading = uploadingFor === folder.folder_id;
     const isDragging = dragOverFolder === folder.folder_id;
     const isLoadingDetails = loadingFolderDetails === folder.folder_id;
+
+    const children = useMemo(() => {
+      if (!hasChildren || !isExpanded) return null;
+
+      return folder.sub_folders!.map((child) => (
+        <TreeItem key={child.folder_id} folder={child} depth={depth + 1} />
+      ));
+    }, [folder.sub_folders, isExpanded, depth, hasChildren]);
 
     return (
       <div key={folder.folder_id} className="group">
@@ -383,8 +455,6 @@ export default function DataBankModern() {
                   )}
                 </div>
                 <div className="text-xs text-gray-500 truncate flex items-center gap-2 mt-1">
-                  <span>{folder.org_name || folder.company_name || ""}</span>
-                  <span>•</span>
                   <span>{folder.files.length} files</span>
                 </div>
               </div>
@@ -412,6 +482,18 @@ export default function DataBankModern() {
                   >
                     <Plus className="mr-2 w-4 h-4" />
                     Add subfolder
+                  </DropdownMenuItem>
+                )}
+
+                {folder.permissions?.can_rename && (
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditFolder(folder.folder_id);
+                    }}
+                  >
+                    <Plus className="mr-2 w-4 h-4" />
+                    Edit folder
                   </DropdownMenuItem>
                 )}
 
@@ -459,27 +541,33 @@ export default function DataBankModern() {
 
           <input
             type="file"
-            ref={(el) => { (fileInputRefs.current[folder.folder_id] = el) }}
+            ref={(el) => setFileInputRef(folder.folder_id, el)}
             className="hidden"
             accept=".xlsx,.xls,.csv"
             onChange={(e) => onFileInputChange(e, folder.folder_id)}
           />
         </div>
 
-        <AnimatePresence>
-          {isExpanded && hasChildren && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              {folder.sub_folders!.map((child) => (
-                <TreeItem key={child.folder_id} folder={child} depth={depth + 1} />
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Only use AnimatePresence when we actually have children to show/hide */}
+        {hasChildren && (
+          // <AnimatePresence>
+          <>
+            {isExpanded && (
+              // <motion.div
+              //   key={`children-${folder.folder_id}`}
+              //   initial={{ height: 0, opacity: 0 }}
+              //   animate={{ height: "auto", opacity: 1 }}
+              //   exit={{ height: 0, opacity: 0 }}
+              //   transition={{ duration: 0.2 }}
+              // >
+              <>
+                {children}
+              </>
+              // </motion.div>
+            )}
+          </>
+          // </AnimatePresence>
+        )}
       </div>
     );
   }, [
@@ -515,20 +603,6 @@ export default function DataBankModern() {
 
   const canUploadToSelected = selectedFolder?.permissions?.can_upload_file ?? false;
   const canDownloadFromSelected = selectedFolder?.permissions?.can_download_file ?? false;
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 gap-4">
-        <div className="relative">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-        </div>
-        <div className="text-center">
-          <p className="text-lg font-semibold text-gray-900">Loading Data Bank</p>
-          <p className="text-sm text-gray-500">Getting your folders ready...</p>
-        </div>
-      </div>
-    );
-  }
 
   const renderFilesView = () => (
     <>
@@ -732,7 +806,6 @@ export default function DataBankModern() {
                       <Badge variant="outline" className="text-xs w-fit">Folder</Badge>
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs text-gray-500">
-                      <span className="truncate">{folder.org_name || folder.company_name || ""}</span>
                       <span className="hidden sm:inline">•</span>
                       <span>{folder.files.length} files</span>
                     </div>
@@ -794,7 +867,10 @@ export default function DataBankModern() {
           ) : (
             <div>
               {filteredFolders.map((f) => (
-                <TreeItem key={f.folder_id} folder={f} />
+                <TreeItem
+                  key={`folder-${f.folder_id}-${expanded[f.folder_id] ? 'expanded' : 'collapsed'}`}
+                  folder={f}
+                />
               ))}
             </div>
           )}
@@ -802,6 +878,18 @@ export default function DataBankModern() {
       </CardContent>
     </Card>
   );
+
+  // Memoized sidebar content to prevent unnecessary re-renders
+  const MemoizedSidebarContent = useMemo(() => <SidebarContent />, [
+    filteredFolders,
+    expanded,
+    selectedFolderId,
+    searchTerm,
+    uploadingFor,
+    dragOverFolder,
+    refreshingFolder,
+    loadingFolderDetails
+  ]);
 
   return (
     <TooltipProvider>
@@ -820,7 +908,7 @@ export default function DataBankModern() {
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-80 p-0">
-                <SidebarContent />
+                {MemoizedSidebarContent}
               </SheetContent>
             </Sheet>
             <Button
@@ -835,17 +923,17 @@ export default function DataBankModern() {
         </div>
 
         <CardContent>
-          <div className="flex gap-4 md:gap-6 h-[calc(100vh-180px)] md:h-[calc(100vh-220px)]">
+          <div className="flex gap-4 md:gap-6">
             {/* Desktop Sidebar */}
             <div className="hidden lg:block w-80 flex-shrink-0">
-              <SidebarContent />
+              {MemoizedSidebarContent}
             </div>
 
             <div className="flex-1 flex flex-col min-w-0">
               {selectedFolder ? (
                 <>
-                  <Card className="mb-4 md:mb-6">
-                    <CardContent className="pt-4 md:pt-6">
+                  <Card className="mb-2 md:mb-4">
+                    <CardContent className="py-2 md:py-4">
                       <Breadcrumb>
                         <BreadcrumbList className="flex-wrap gap-0 sm:gap-1">
                           <BreadcrumbItem>
@@ -883,8 +971,8 @@ export default function DataBankModern() {
                     </CardContent>
                   </Card>
 
-                  <Card className="mb-4 md:mb-6">
-                    <CardHeader className="pb-3">
+                  <Card className="mb-2 md:mb-4">
+                    <CardHeader className="py-3">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="flex items-center gap-3 md:gap-4">
                           <div className="p-2 md:p-3 rounded-lg md:rounded-xl bg-blue-100 text-blue-600">
@@ -901,10 +989,8 @@ export default function DataBankModern() {
                               </Badge>
                             </CardTitle>
                             <CardDescription className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mt-1 text-xs md:text-sm">
-                              <span>{selectedFolder.org_name || selectedFolder.company_name}</span>
                               {latestFile && (
                                 <>
-                                  <span className="hidden sm:inline">•</span>
                                   <span>Last updated {formatDateTime(latestFile.created_on)}</span>
                                 </>
                               )}
@@ -929,16 +1015,6 @@ export default function DataBankModern() {
                             </Button>
                           )}
 
-                          <Button
-                            variant="outline"
-                            onClick={() => handleOpenPermissions(selectedFolder.folder_id)}
-                            size="sm"
-                            className="text-sm"
-                          >
-                            <Users className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
-                            Permissions
-                          </Button>
-
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="outline" size="sm" className="px-2">
@@ -949,6 +1025,10 @@ export default function DataBankModern() {
                               <DropdownMenuItem onClick={() => refreshFolder(selectedFolder.folder_id)}>
                                 <RefreshCw className="w-4 h-4 mr-2" />
                                 Refresh
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleOpenPermissions(selectedFolder.folder_id)}>
+                                <Users className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                                Permissions
                               </DropdownMenuItem>
                               {selectedFolder.permissions?.can_create_subfolder && (
                                 <DropdownMenuItem onClick={() => handleAddSubfolder(selectedFolder.folder_id)}>
@@ -976,7 +1056,7 @@ export default function DataBankModern() {
                         </TabsTrigger>
                       </TabsList>
 
-                      <TabsContent value="files" className="mt-0 mb-2 md:mb-3 mx-2 md:mx-3 max-h-96 overflow-auto">
+                      <TabsContent value="files" className="mt-0 mb-3 mx-2 md:mx-3 max-h-[30rem] overflow-auto">
                         {renderContentItems()}
                       </TabsContent>
 
@@ -989,7 +1069,7 @@ export default function DataBankModern() {
                           }}
                           setReload={loadFolders}
                           folderId={editFolderId}
-                          parentId={parentFolderId}
+                          parentId={selectedFolderId}
                         />
                       </TabsContent>
 
@@ -1002,6 +1082,15 @@ export default function DataBankModern() {
                       </TabsContent>
                     </Tabs>
                   </Card>
+
+                  {/* Hidden file input for selected folder */}
+                  <input
+                    type="file"
+                    ref={(el) => setFileInputRef(selectedFolder.folder_id, el)}
+                    className="hidden"
+                    accept=".xlsx,.xls,.csv"
+                    onChange={(e) => onFileInputChange(e, selectedFolder.folder_id)}
+                  />
                 </>
               ) : (
                 <>

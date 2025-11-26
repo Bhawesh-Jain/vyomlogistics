@@ -18,7 +18,6 @@ import { addFolder, getFolderById, getFolderList, updateFolder } from "@/lib/act
 import { FileTransfer } from "@/lib/helpers/file-helper";
 
 const formSchema = z.object({
-  org_id: z.string().min(1, 'Select organization'),
   folder_name: z.string().min(1, 'Enter folder name'),
   parent_id: z.string().optional(),
   status: z.enum(['1', '0']).default('1')
@@ -41,13 +40,14 @@ export default function AddFolder({
   const [dataLoading, setDataLoading] = useState(false);
   const [folderData, setFolderData] = useState<Folder | null>(null);
   const [folders, setFolders] = useState<Folder[]>([]);
-  const [organizationsData, setOrganizationsData] = useState<Organization[]>([]);
   const { toast } = useToast();
+
+  console.log(parentId);
+
 
   const form = useForm<FolderFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      org_id: '',
       folder_name: '',
       status: '1'
     },
@@ -56,8 +56,9 @@ export default function AddFolder({
 
   useEffect(() => {
     (async () => {
+      setDataLoading(true);
       const folderRes = await getFolderList(true);
-      const organizations = await getAllOrganizations();
+      form.reset();
 
       if (folderRes.success) {
         const formattedData = folderRes.result
@@ -68,20 +69,16 @@ export default function AddFolder({
           }));
 
         setFolders(formattedData);
+        if (parentId) {
+          form.reset({
+            folder_name: '',
+            parent_id: String(parentId) ?? '',
+            status: '1'
+          });
+        }
       }
 
-      if (organizations.success) {
-        const formattedData = organizations.result.map((item: Organization) => ({
-          label: item.org_name,
-          value: item.org_id.toString(),
-        }));
-
-        setOrganizationsData(formattedData);
-      }
-    })();
-    if (folderId) {
-      (async () => {
-        setDataLoading(true);
+      if (folderId) {
         try {
           const result = await getFolderById(folderId);
 
@@ -90,7 +87,6 @@ export default function AddFolder({
             setFolderData(folder);
 
             form.reset({
-              org_id: folder.org_id?.toString() ?? '',
               folder_name: folder.folder_name ?? '',
               parent_id: String(folder.parent_id) ?? '',
               status: folder.status?.toString() ?? '1'
@@ -108,19 +104,12 @@ export default function AddFolder({
             description: error?.message || "Failed to fetch folder data",
             variant: "destructive"
           });
-        } finally {
-          setDataLoading(false);
-        }
-      })();
-    } else if (parentId) {
-      form.reset({
-        org_id: '',
-        folder_name: '',
-        parent_id: String(parentId) ?? '',
-        status: '1'
-      });
-    }
-  }, [folderId]);
+        } 
+      }
+
+      setDataLoading(false);
+    })();
+  }, []);
 
   async function onSubmit(data: FolderFormValues) {
     setLoading(true);
@@ -162,24 +151,6 @@ export default function AddFolder({
       ) : (
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-
-            {/* Organization Selection */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5" /> Organization
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <DefaultFormSelect
-                  form={form}
-                  name="org_id"
-                  label="Select Organization"
-                  placeholder="Choose an organization"
-                  options={organizationsData}
-                />
-              </CardContent>
-            </Card>
 
             {/* Folder Information */}
             <Card>
