@@ -75,7 +75,7 @@ export default function DataBankModern() {
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   const { showError, showSuccess, showConfirmation, setLoading: setDialogLoading } = useGlobalDialog();
-  const { user } = useUser(); 
+  const { user } = useUser();
 
   const canEditPermissions = user.role == '1' || user.role == '2';
 
@@ -436,13 +436,16 @@ export default function DataBankModern() {
     const isDragging = dragOverFolder === folder.folder_id;
     const isLoadingDetails = loadingFolderDetails === folder.folder_id;
 
-    const children = () => {
-      if (!hasChildren || !isExpanded) return null;
+    const children = useMemo(() => {
+      const sub = folder.sub_folders ?? [];
 
-      return folder.sub_folders!.map((child) => (
+      if (!isExpanded || sub.length === 0) return null;
+
+      return sub.map((child) => (
         <TreeItem key={child.folder_id} folder={child} depth={depth + 1} />
       ));
-    };
+    }, [isExpanded, folder.folder_id, depth]);
+
 
     return (
       <div key={folder.folder_id} className="group">
