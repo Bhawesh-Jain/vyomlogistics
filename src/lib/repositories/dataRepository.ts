@@ -308,7 +308,7 @@ export class DataRepository extends RepositoryBase {
         return this.failure('No File Provided');
       }
 
-      await saveFile(file, file.name, folderId.toString(), 'data_file', './uploads/data-bank/', 'user-web-upload')
+      await saveFile(file, file.name, folderId.toString(), this.userId, 'data_file', './uploads/data-bank/', 'user-web-upload');
 
       return this.success('File Uploaded Successfully');
     } catch (error) {
@@ -320,7 +320,7 @@ export class DataRepository extends RepositoryBase {
     fileId: number
   ) {
     try {
-      const res = await deleteFileFromIdentifier(fileId.toString());
+      const res = await deleteFileFromIdentifier(fileId.toString(), this.userId);
 
       if (!res.success) {
         return this.failure(res.error || 'File Deletion Failed');

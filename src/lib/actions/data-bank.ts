@@ -20,6 +20,13 @@ export async function getFolderById(folderId: number) {
   return await dataRepository.getFolderById(folderId);
 }
 
+export async function deleteDataFile(fileId: number) {
+  const session = await getSession();
+
+  const dataRepository = new DataRepository(session.user_id);
+  return await dataRepository.deleteDataFile(fileId);
+}
+
 export async function addFolder(data: FolderFormValues) {
   const session = await getSession();
 

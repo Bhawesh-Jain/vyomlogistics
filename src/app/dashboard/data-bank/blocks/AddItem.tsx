@@ -2,20 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Form } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import Loading from "@/app/dashboard/loading";
-import { DefaultFormTextField, DefaultFormSelect, DefaultFormDatePicker } from "@/components/ui/default-form-field";
+import { DefaultFormTextField } from "@/components/ui/default-form-field";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileCheck, Building2, Calendar } from "lucide-react";
-import { getAllOrganizations } from "@/lib/actions/organizations";
+import { FileCheck } from "lucide-react";
 import { Folder } from "@/lib/repositories/dataRepository";
-import { Organization } from "@/lib/repositories/organizationRepository";
 import { addFolder, getFolderById, getFolderList, updateFolder } from "@/lib/actions/data-bank";
-import { FileTransfer } from "@/lib/helpers/file-helper";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const formSchema = z.object({
   folder_name: z.string().min(1, 'Enter folder name'),
@@ -39,20 +37,17 @@ export default function AddFolder({
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(false);
   const [folderData, setFolderData] = useState<Folder | null>(null);
-  const [folders, setFolders] = useState<Folder[]>([]);
+  const [folders, setFolders] = useState<{label: string, value: string}[]>([]);
   const { toast } = useToast();
-
-  console.log(parentId);
-
 
   const form = useForm<FolderFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       folder_name: '',
+      parent_id: undefined,
       status: '1'
     },
   });
-
 
   useEffect(() => {
     (async () => {
@@ -68,11 +63,16 @@ export default function AddFolder({
             value: item.folder_id.toString(),
           }));
 
-        setFolders(formattedData);
+        // Add empty option at the beginning with a special value
+        setFolders([
+          { label: "No Parent Folder", value: "none" },
+          ...formattedData
+        ]);
+        
         if (parentId) {
           form.reset({
             folder_name: '',
-            parent_id: String(parentId) ?? '',
+            parent_id: String(parentId),
             status: '1'
           });
         }
@@ -88,7 +88,7 @@ export default function AddFolder({
 
             form.reset({
               folder_name: folder.folder_name ?? '',
-              parent_id: String(folder.parent_id) ?? '',
+              parent_id: folder.parent_id ? String(folder.parent_id) : "none",
               status: folder.status?.toString() ?? '1'
             });
           } else {
@@ -109,14 +109,19 @@ export default function AddFolder({
 
       setDataLoading(false);
     })();
-  }, []);
+  }, [folderId, parentId, form, toast]);
 
   async function onSubmit(data: FolderFormValues) {
     setLoading(true);
     try {
+      const formData = {
+        ...data,
+        parent_id: data.parent_id === "none" ? undefined : data.parent_id
+      };
+
       const result = folderId
-        ? await updateFolder(folderId, data)
-        : await addFolder(data);
+        ? await updateFolder(folderId, formData)
+        : await addFolder(formData);
 
       if (result.success) {
         toast({
@@ -160,12 +165,29 @@ export default function AddFolder({
                 </CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <DefaultFormSelect
-                  form={form}
+                <FormField
+                  control={form.control}
                   name="parent_id"
-                  label="Parent Folder"
-                  placeholder="Choose a parent folder"
-                  options={folders}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Parent Folder</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Choose a parent folder" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {folders.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
                 <DefaultFormTextField
                   form={form}

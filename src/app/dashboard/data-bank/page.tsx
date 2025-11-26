@@ -19,9 +19,10 @@ import {
   X,
   Home,
   Users,
-  Menu
+  Menu,
+  Trash2,
+  Edit2
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,7 +35,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
-import { getFolderList, uploadDataFile, getFolderById } from "@/lib/actions/data-bank";
+import { getFolderList, uploadDataFile, getFolderById, deleteDataFile } from "@/lib/actions/data-bank";
 import { DataFile, Folder } from "@/lib/repositories/dataRepository";
 import { FileTransfer } from "@/lib/helpers/file-helper";
 import { formatDateTime } from "@/lib/utils/date";
@@ -70,6 +71,8 @@ export default function DataBankModern() {
   const [loadingFolderDetails, setLoadingFolderDetails] = useState<number | null>(null);
 
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
+
+  const { showError, showSuccess, showConfirmation, setLoading: setDialogLoading } = useGlobalDialog();
 
   const loadFolders = useCallback(async () => {
     try {
@@ -325,6 +328,32 @@ export default function DataBankModern() {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
   }, []);
 
+  const deleteFileFunc = async (id: number) => {
+    showConfirmation("Delete File?",
+      "Are you sure you want to delete this file? This action cannot be undone.",
+      async () => {
+        try {
+          setDialogLoading(true);
+
+          const res = await deleteDataFile(id);
+
+          if (res.success) {
+            showSuccess('File Deleted', 'The file has been successfully deleted.');
+            const folderId = selectedFolderId;
+            if (folderId) {
+              await refreshFolder(folderId);
+            }
+          } else {
+            showError("Error", res.error || "Failed to delete file.");
+          }
+        } catch (error) {
+          showError("Error", "Failed to delete file.");
+        } finally {
+          setDialogLoading(false);
+        }
+      });
+  };
+
   const setFileInputRef = useCallback((folderId: number, el: HTMLInputElement | null) => {
     if (el) {
       fileInputRefs.current[folderId] = el;
@@ -353,6 +382,7 @@ export default function DataBankModern() {
   const handleAddRootFolder = useCallback(() => {
     setEditFolderId(null);
     setParentFolderId(null);
+    setSelectedFolderId(null);
     setActiveView("add-folder");
   }, []);
 
@@ -492,7 +522,7 @@ export default function DataBankModern() {
                       handleEditFolder(folder.folder_id);
                     }}
                   >
-                    <Plus className="mr-2 w-4 h-4" />
+                    <Edit2 className="mr-2 w-4 h-4" />
                     Edit folder
                   </DropdownMenuItem>
                 )}
@@ -603,6 +633,7 @@ export default function DataBankModern() {
 
   const canUploadToSelected = selectedFolder?.permissions?.can_upload_file ?? false;
   const canDownloadFromSelected = selectedFolder?.permissions?.can_download_file ?? false;
+  const canDeleteFromSelected = selectedFolder?.permissions?.can_delete ?? false;
 
   const renderFilesView = () => (
     <>
@@ -713,6 +744,7 @@ export default function DataBankModern() {
               file={file}
               version={filteredFiles.length - index}
               canDownload={canDownloadFromSelected}
+              canDelete={canDeleteFromSelected}
             />
           ))}
         </div>
@@ -826,6 +858,7 @@ export default function DataBankModern() {
                   file={file}
                   version={version}
                   canDownload={canDownloadFromSelected}
+                  canDelete={canDeleteFromSelected}
                 />
               );
             }
@@ -834,6 +867,64 @@ export default function DataBankModern() {
       </div>
     );
   };
+
+
+  const FileCard = ({ file, version, canDownload }: { file: DataFile; version: number; canDownload: boolean }) => (
+    <Card className="p-3 md:p-4 hover:shadow-md transition-shadow group">
+      <div className="flex items-start justify-between mb-2 md:mb-3">
+        <div className="p-1 md:p-2 bg-gray-100 rounded-lg">
+          <FileIcon className="w-4 h-4 md:w-5 md:h-5 text-gray-600" />
+        </div>
+        {canDownload && (
+          <Button variant="ghost" size="sm" asChild className="opacity-0 group-hover:opacity-100 transition-opacity p-1 md:p-2">
+            <a href={`/api/uploads/${encodeURIComponent(file.identifier)}/download`} download>
+              <Download className="w-3 h-3 md:w-4 md:h-4" />
+            </a>
+          </Button>
+        )}
+      </div>
+
+      <h4 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 truncate">{file.file_name}</h4>
+      <div className="space-y-1 text-xs text-gray-500">
+        <div>Version #{version}</div>
+        <div>{formatDateTime(file.created_on)}</div>
+        <div>{formatFileSize(file.file_size)}</div>
+      </div>
+    </Card>
+  );
+
+  const FileRow = ({ file, version, canDownload, canDelete }: { file: DataFile; version: number; canDownload: boolean; canDelete: boolean }) => (
+    <div className="flex items-center gap-1 p-2 md:p-3 rounded-lg border hover:bg-gray-50 group transition-colors">
+      <div className="p-1 md:p-2 bg-gray-100 rounded-lg flex-shrink-0">
+        <FileIcon className="w-4 h-4 md:w-5 md:h-5 text-gray-600" />
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mb-1">
+          <h4 className="font-semibold text-sm truncate">{file.file_name}</h4>
+          <Badge variant="outline" className="text-xs w-fit">v{version}</Badge>
+        </div>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs text-gray-500">
+          <span>{formatDateTime(file.created_on)}</span>
+          <span className="hidden sm:inline">•</span>
+          <span>{formatFileSize(file.file_size)}</span>
+        </div>
+      </div>
+
+      {canDelete && (
+        <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity p-1 md:p-2 text-destructive" onClick={() => deleteFileFunc(file.id)}>
+          <Trash2 className="w-3 h-3 md:w-4 md:h-4" />
+        </Button>
+      )}
+      {canDownload && (
+        <Button variant="ghost" size="sm" asChild className="opacity-0 group-hover:opacity-100 transition-opacity p-1 md:p-2 flex-shrink-0">
+          <a href={`/api/uploads/${encodeURIComponent(file.identifier)}/download`} download>
+            <Download className="w-3 h-3 md:w-4 md:h-4" />
+          </a>
+        </Button>
+      )}
+    </div>
+  );
 
   const SidebarContent = () => (
     <Card className="w-full h-full flex flex-col">
@@ -1036,6 +1127,17 @@ export default function DataBankModern() {
                                   Add Subfolder
                                 </DropdownMenuItem>
                               )}
+                              {selectedFolder.permissions?.can_rename && (
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditFolder(selectedFolder.folder_id);
+                                  }}
+                                >
+                                  <Edit2 className="mr-2 w-4 h-4" />
+                                  Edit folder
+                                </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -1058,7 +1160,7 @@ export default function DataBankModern() {
                         </TabsList>
 
                         <Button
-                          className="m-2 md:m-3 flex-wrap hidden md:flex" 
+                          className="m-2 md:m-3 flex-wrap hidden md:flex"
                           variant={'ghost'}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1144,55 +1246,3 @@ export default function DataBankModern() {
     </TooltipProvider>
   );
 }
-
-const FileCard = ({ file, version, canDownload }: { file: DataFile; version: number; canDownload: boolean }) => (
-  <Card className="p-3 md:p-4 hover:shadow-md transition-shadow group">
-    <div className="flex items-start justify-between mb-2 md:mb-3">
-      <div className="p-1 md:p-2 bg-gray-100 rounded-lg">
-        <FileIcon className="w-4 h-4 md:w-5 md:h-5 text-gray-600" />
-      </div>
-      {canDownload && (
-        <Button variant="ghost" size="sm" asChild className="opacity-0 group-hover:opacity-100 transition-opacity p-1 md:p-2">
-          <a href={`/api/uploads/${encodeURIComponent(file.identifier)}/download`} download>
-            <Download className="w-3 h-3 md:w-4 md:h-4" />
-          </a>
-        </Button>
-      )}
-    </div>
-
-    <h4 className="font-semibold text-xs md:text-sm mb-1 md:mb-2 truncate">{file.file_name}</h4>
-    <div className="space-y-1 text-xs text-gray-500">
-      <div>Version #{version}</div>
-      <div>{formatDateTime(file.created_on)}</div>
-      <div>{formatFileSize(file.file_size)}</div>
-    </div>
-  </Card>
-);
-
-const FileRow = ({ file, version, canDownload }: { file: DataFile; version: number; canDownload: boolean }) => (
-  <div className="flex items-center gap-3 p-2 md:p-3 rounded-lg border hover:bg-gray-50 group transition-colors">
-    <div className="p-1 md:p-2 bg-gray-100 rounded-lg flex-shrink-0">
-      <FileIcon className="w-4 h-4 md:w-5 md:h-5 text-gray-600" />
-    </div>
-
-    <div className="flex-1 min-w-0">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mb-1">
-        <h4 className="font-semibold text-sm truncate">{file.file_name}</h4>
-        <Badge variant="outline" className="text-xs w-fit">v{version}</Badge>
-      </div>
-      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs text-gray-500">
-        <span>{formatDateTime(file.created_on)}</span>
-        <span className="hidden sm:inline">•</span>
-        <span>{formatFileSize(file.file_size)}</span>
-      </div>
-    </div>
-
-    {canDownload && (
-      <Button variant="ghost" size="sm" asChild className="opacity-0 group-hover:opacity-100 transition-opacity p-1 md:p-2 flex-shrink-0">
-        <a href={`/api/uploads/${encodeURIComponent(file.identifier)}/download`} download>
-          <Download className="w-3 h-3 md:w-4 md:h-4" />
-        </a>
-      </Button>
-    )}
-  </div>
-);
