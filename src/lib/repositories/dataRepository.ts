@@ -3,6 +3,7 @@ import { RepositoryBase } from "../helpers/repository-base"
 import { FolderFormValues } from "@/app/dashboard/data-bank/blocks/AddItem";
 import { File } from "fetch-blob/file.js";
 import { deleteFileFromIdentifier, saveFile } from "../helpers/file-helper";
+import { customLog } from "../utils";
 
 export interface Folder {
   folder_id: number;
@@ -370,6 +371,9 @@ export class DataRepository extends RepositoryBase {
       if (!file) {
         return this.failure('No File Provided');
       }
+      customLog(file);
+
+
 
       await saveFile(file, file.name, folderId.toString(), this.userId, 'data_file', './uploads/data-bank/', 'user-web-upload');
 

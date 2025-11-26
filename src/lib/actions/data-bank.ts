@@ -57,13 +57,21 @@ export async function saveFolderPermissions(folderId: number, permissions: Folde
 
 export async function uploadDataFile(id: number, fileData: FileTransfer) {
   const session = await getSession();
-
-  var file: File | undefined;
-  if (fileData) {
-    const uint8Array = new Uint8Array(fileData.arrayBuffer);
-    const blob = new Blob([uint8Array], { type: fileData.type });
-    file = new File([blob], fileData.name, { type: fileData.type });
+  
+  if (!fileData?.arrayBuffer || !Array.isArray(fileData.arrayBuffer)) {
+    throw new Error("fileData.arrayBuffer must be number[]");
   }
+
+  // Convert number[] → Uint8Array
+  const uint8 = new Uint8Array(fileData.arrayBuffer);
+
+  // Create Blob
+  const blob = new Blob([uint8], { type: fileData.type });
+
+  // Create File
+  const file = new File([blob], fileData.name, { type: fileData.type });
+
+  console.log("file:", file);
 
   const userRepository = new DataRepository(session.user_id);
   return await userRepository.uploadDataFile(id, file);
