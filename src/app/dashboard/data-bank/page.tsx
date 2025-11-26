@@ -436,13 +436,13 @@ export default function DataBankModern() {
     const isDragging = dragOverFolder === folder.folder_id;
     const isLoadingDetails = loadingFolderDetails === folder.folder_id;
 
-    const children = useMemo(() => {
+    const children = () => {
       if (!hasChildren || !isExpanded) return null;
 
       return folder.sub_folders!.map((child) => (
         <TreeItem key={child.folder_id} folder={child} depth={depth + 1} />
       ));
-    }, [folder.sub_folders, isExpanded, depth, hasChildren]);
+    };
 
     return (
       <div key={folder.folder_id} className="group">
