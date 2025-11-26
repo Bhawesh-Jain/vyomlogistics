@@ -326,7 +326,7 @@ export default function FolderPermissions({ folder, onClose, onUpdate }: FolderP
                 Folder Permissions
               </CardTitle>
               <CardDescription className="truncate">
-                Manage user permissions for "{folder.folder_name.replace(/_/g, " ")}"
+                Manage user permissions for &rdquo;{folder.folder_name.replace(/_/g, " ")}&rdquo;
               </CardDescription>
             </div>
             <Button variant="ghost" size="icon" onClick={onClose} className="flex-shrink-0">
