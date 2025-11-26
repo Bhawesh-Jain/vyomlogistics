@@ -9,7 +9,7 @@ import { Button, ButtonTooltip } from "@/components/ui/button";
 import { Edit2, Trash, Warehouse, MapPin, DollarSign, PieChart, Square, Users } from "lucide-react";
 import AddGodown from "./blocks/AddItem";
 import SpaceManagement from "./blocks/SpaceManagement";
-import { Godown, SpaceAllocation } from "@/lib/repositories/warehouseRepository";
+import { Godown } from "@/lib/repositories/warehouseRepository";
 import { getAllGodowns, deleteGodown } from "@/lib/actions/warehouse";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -269,7 +269,7 @@ export default function WarehouseManagement() {
 
           <TabsContent value="spaces">
             {selectedGodown && (
-              <SpaceManagement godownId={selectedGodown.godown_id} />
+              <SpaceManagement godownId={selectedGodown.godown_id} capacityUnit={selectedGodown.capacity_unit} totalArea={selectedGodown.total_capacity} />
             )}
           </TabsContent>
         </Tabs>

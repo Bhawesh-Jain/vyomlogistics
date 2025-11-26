@@ -14,6 +14,13 @@ export async function getAllOrganizations() {
   return await userRepository.getAllOrganizations();
 }
 
+export async function getActiveAgreements() {
+  const session = await getSession();
+
+  const userRepository = new OrganizationRepository(session.user_id);
+  return await userRepository.getActiveAgreements();
+}
+
 export async function getOrganizationById({ id, withInvoice }: { id: number, withInvoice?: boolean }) {
   const session = await getSession();
 

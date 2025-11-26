@@ -502,5 +502,25 @@ export class OrganizationRepository extends RepositoryBase {
       return this.handleError(error);
     }
   }
-}
 
+  async getActiveAgreements() {
+    try {
+      let sql = `
+        SELECT oa.*,
+          o.org_name,
+          u.name AS updated_by 
+        FROM organization_agreements oa
+        LEFT JOIN organizations o ON oa.org_id = o.org_id
+        LEFT JOIN users u ON oa.updated_by = u.id
+        WHERE oa.status = 1
+          AND oa.valid_upto >= CURDATE()
+      `;
+
+      const agreements = await executeQuery(sql) as Agreement[];
+
+      return this.success(agreements);
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+}
