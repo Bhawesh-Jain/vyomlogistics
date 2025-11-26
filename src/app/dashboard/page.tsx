@@ -1,50 +1,50 @@
-// app/dashboard/page.tsx
+// app/dashboard/page.tsx - Updated version
 'use client';
 
 import { useEffect, useState } from 'react';
-import { StatsCards } from './blocks/stats-cards';
 import { ExpiringItems } from './blocks/expiring-items';
+import { QuickActions } from './blocks/quick-actions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertTriangle, Calendar } from 'lucide-react';
-import { DashboardStats, ExpiringItem, RecentActivity } from '@/lib/repositories/miscRepository';
-import { getDashboardStats, getExpiringItems } from '@/lib/actions/dashboard';
+import { AlertTriangle, Calendar, Building2 } from 'lucide-react';
+import { getCompanyFinancialSummary, getExpiringItems } from '@/lib/actions/dashboard';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { CompanySelector } from './blocks/company-selector';
+import { GodownPerformance } from './blocks/godown-performance';
+import { ClientRevenue } from './blocks/client-revenue';
+import { FinancialOverview } from './blocks/financial-overview';
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [expiringItems, setExpiringItems] = useState<ExpiringItem[]>([]);
+  const [selectedCompany, setSelectedCompany] = useState<number | null>(null);
+  const [companyData, setCompanyData] = useState<any>(null);
+  const [expiringItems, setExpiringItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadDashboardData() {
+    async function loadCompanyData() {
+      if (!selectedCompany) return;
+
       try {
-        const [statsData, expiringData] = await Promise.all([
-          getDashboardStats(),
+        setLoading(true);
+        const [companyData, expiringData] = await Promise.all([
+          getCompanyFinancialSummary(selectedCompany),
           getExpiringItems(),
         ]);
 
-        setStats(statsData.result);
-        setExpiringItems(expiringData.result);
+        if (companyData.success) {
+          setCompanyData(companyData.result);
+        }
+        if (expiringData.success) {
+          setExpiringItems(expiringData.result);
+        }
       } catch (error) {
-        console.error('Failed to load dashboard data:', error);
+        console.error('Failed to load company data:', error);
       } finally {
         setLoading(false);
       }
     }
 
-    loadDashboardData();
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
+    loadCompanyData();
+  }, [selectedCompany]);
 
   const criticalExpiring = expiringItems.filter(item => 
     item.status === 'expired' || (item.status === 'expiring' && item.daysUntilExpiry <= 7)
@@ -67,6 +67,12 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Company Selector */}
+      <CompanySelector 
+        selectedCompany={selectedCompany}
+        onCompanyChange={setSelectedCompany}
+      />
+
       {/* Critical Alerts */}
       {criticalExpiring.length > 0 && (
         <Alert variant="destructive">
@@ -77,16 +83,78 @@ export default function DashboardPage() {
         </Alert>
       )}
 
-      {/* Stats Overview */}
-      {stats && <StatsCards stats={stats} />}
-
-      <div className="grid gap-4">
-        {/* Expiring Items */}
-        <div className="col-span-4">
-          <ExpiringItems items={expiringItems} />
+      {loading && selectedCompany && (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-2 text-muted-foreground">Loading company data...</p>
         </div>
+      )}
 
-      </div>
+      {companyData && !loading && (
+        <>
+          {/* Financial Overview */}
+          <FinancialOverview data={companyData} />
+
+          <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+            {/* Client Revenue - Takes 1 column */}
+            <div className="xl:col-span-1">
+              <ClientRevenue clients={companyData.clientRevenue} />
+            </div>
+
+            {/* Godown Performance - Takes 1 column */}
+            <div className="xl:col-span-1">
+              <GodownPerformance godowns={companyData.godownPerformance} />
+            </div>
+
+            {/* Right Sidebar - Takes 1 column */}
+            <div className="space-y-4 xl:col-span-1">
+              <ExpiringItems items={expiringItems} />
+              
+              {/* Quick Stats Card */}
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Quick Stats</CardTitle>
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>Total Organizations:</span>
+                      <span className="font-medium">{companyData.organizations.length}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Active Agreements:</span>
+                      <span className="font-medium">{companyData.financial.active_agreements}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Space Utilization:</span>
+                      <span className="font-medium">{Math.round(companyData.financial.utilization_rate || 0)}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Pending Invoices:</span>
+                      <span className="font-medium text-red-600">₹{companyData.financial.total_pending.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </>
+      )}
+
+      {!selectedCompany && !loading && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center py-12">
+              <Building2 className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+              <h3 className="text-lg font-medium mb-2">Select a Company</h3>
+              <p className="text-muted-foreground">
+                Choose a company from the dropdown above to view detailed analytics and financial data.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
