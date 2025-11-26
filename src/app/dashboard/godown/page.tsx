@@ -14,6 +14,8 @@ import { getAllGodowns, deleteGodown } from "@/lib/actions/warehouse";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getCurrencySymbol } from "@/lib/utils";
+import { MoneyHelper } from "@/lib/helpers/money-helper";
 
 export default function WarehouseManagement() {
   const [godowns, setGodowns] = useState<Godown[]>([]);
@@ -73,7 +75,7 @@ export default function WarehouseManagement() {
 
   const getUtilizationPercentage = (godown: Godown) => {
     if (!godown.total_capacity || godown.total_capacity == 0) return 0;
-    const utilized = Number(godown.total_capacity) - Number(godown.available_capacity);
+    const utilized = Number(godown.total_space_allocated);
     return (utilized / Number(godown.total_capacity)) * 100;
   };
 
@@ -120,7 +122,7 @@ export default function WarehouseManagement() {
             className={`h-2 ${getUtilizationColor(getUtilizationPercentage(row))}`}
           />
           <div className="flex justify-between text-xs text-muted-foreground mt-1">
-            <span>Used: {Number(row.total_capacity) - Number(row.available_capacity)} {row.capacity_unit}</span>
+            <span>Used: {Number(row.total_space_allocated)} {row.capacity_unit}</span>
             <span>Total: {Number(row.total_capacity)} {row.capacity_unit}</span>
           </div>
         </div>
@@ -135,8 +137,7 @@ export default function WarehouseManagement() {
       cell: (row) => (
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <DollarSign className="h-3 w-3 text-muted-foreground" />
-            <span className="font-medium">{row.currency_symbol} {row.monthly_rent?.toLocaleString()}/month</span>
+            <span className="font-medium">{MoneyHelper.formatRupees(row.monthly_rent)} / month</span>
           </div>
           <div className="text-xs text-muted-foreground">
             Rent for entire godown
@@ -147,14 +148,14 @@ export default function WarehouseManagement() {
     {
       id: "allocations",
       header: "Allocations",
-      accessorKey: "allocated_companies_count",
+      accessorKey: "organization_count",
       sortable: true,
       visible: true,
       cell: (row) => (
         <div className="space-y-1">
-          <Badge variant={row.allocated_companies_count > 0 ? "default" : "secondary"}>
+          <Badge variant={row.organization_count > 0 ? "default" : "secondary"}>
             <Users className="h-3 w-3 mr-1" />
-            {row.allocated_companies_count} companies
+            {row.organization_count} organizations
           </Badge>
           <div className="text-xs text-muted-foreground">
             Active allocations

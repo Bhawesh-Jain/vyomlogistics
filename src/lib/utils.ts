@@ -41,3 +41,21 @@ export function formatFileSize(file_size: string): string {
 
   return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
 }
+
+export function getCurrencySymbol(currency: string): string {
+  const currencySymbols: { [key: string]: string } = {
+    USD: '$',
+    EUR: '€',
+    GBP: '£',
+    INR: '₹',
+    JPY: '¥',
+    CNY: '¥',
+    AUD: 'A$',
+    CAD: 'C$',
+    CHF: 'CHF',
+    SEK: 'kr',
+    NZD: 'NZ$',
+  };
+
+  return currencySymbols[currency] || currency;
+}

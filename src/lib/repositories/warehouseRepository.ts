@@ -5,19 +5,24 @@ import mysql from 'mysql2/promise';
 
 export interface Godown {
   godown_id: number;
-  org_id: number;
+  company_id: number;
+  
   godown_name: string;
   location: string;
   pincode: string;
   total_capacity: number;
-  available_capacity: number;
   capacity_unit: string;
   monthly_rent: number;
   currency: string;
-  currency_symbol: string;
   description?: string;
   is_active: boolean;
-  allocated_companies_count: number;
+
+  organization_count: number;
+  total_space_allocated: number;
+  total_rent_collected: number;
+
+  updated_by: number;
+  
   created_on: string;
   updated_on: string;
 }
@@ -81,30 +86,30 @@ export class WarehouseRepository extends RepositoryBase {
   }
 
   // Godown Management
-  async getAllGodowns(orgId?: number) {
+  async getAllGodowns(companyId?: number) {
     try {
       let sql = `
-        SELECT g.*, 
-               cm.currency_symbol,
-               COUNT(DISTINCT sa.allocated_to_org_id) as allocated_companies_count,
-               (SELECT COALESCE(SUM(g.total_capacity - gs.available_area), 0) 
-                FROM godown_spaces gs 
-                WHERE gs.godown_id = g.godown_id AND gs.is_occupied = 1) as utilized_capacity,
-               (g.total_capacity - (SELECT COALESCE(SUM(gs.total_area - gs.available_area), 0) 
-                                   FROM godown_spaces gs 
-                                   WHERE gs.godown_id = g.godown_id AND gs.is_occupied = 1)) as available_capacity
-        FROM godowns g
-        LEFT JOIN organizations o ON g.org_id = o.org_id
-        LEFT JOIN company_master cm ON o.company_id = cm.company_id
-        LEFT JOIN space_allocations sa ON g.godown_id = sa.godown_id AND sa.status = 'active'
-        WHERE g.is_active = 1
-        ${orgId ? 'AND g.org_id = ?' : ''}
-        GROUP BY g.godown_id
-        ORDER BY g.created_on DESC
-      `;
-      
-      const params = orgId ? [orgId] : [];
-      const godowns = await executeQuery(sql, params) as Godown[];
+      SELECT 
+        g.*,
+
+        COUNT(DISTINCT a.organization_id) AS organization_count,
+        COALESCE(SUM(a.space_allocated), 0) AS total_space_allocated,
+        COALESCE(SUM(a.monthly_rent), 0) AS total_rent_collected
+
+      FROM godowns g
+      LEFT JOIN godown_space_allocations a 
+        ON g.godown_id = a.godown_id 
+        AND a.status = 1
+
+      WHERE 1 = 1
+      ${companyId ? 'AND g.company_id = ?' : ''}
+
+      GROUP BY g.godown_id
+      ORDER BY g.godown_name ASC
+    `;
+
+      const params = companyId ? [companyId] : [];
+      const godowns = await executeQuery(sql, params);
 
       return this.success(godowns);
     } catch (error) {
@@ -482,9 +487,9 @@ export class WarehouseRepository extends RepositoryBase {
   private async getOrgIdByGodown(godownId: number, transaction?: mysql.Connection): Promise<number> {
     const result = await new QueryBuilder('godowns')
       .where('godown_id = ?', godownId)
-      .selectOne(['org_id']) as Godown;
+      .selectOne(['company_id']) as Godown;
 
-    return result?.org_id || 0;
+    return result?.company_id || 0;
   }
 
   private async getGodownIdBySpace(spaceId: number): Promise<number> {
