@@ -771,7 +771,7 @@ export default function DataBankModern() {
           <FolderIcon className="w-12 h-12 md:w-16 md:h-16 text-gray-300 mx-auto mb-3 md:mb-4" />
           <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-2">Empty folder</h3>
           <p className="text-gray-500 text-sm md:text-base mb-4">
-            This folder doesn't contain any files or subfolders
+            This folder doesn&rsquo;t contain any files or subfolders
           </p>
           <div className="flex flex-col sm:flex-row gap-2 justify-center">
             {selectedFolder?.permissions?.can_create_subfolder && (
