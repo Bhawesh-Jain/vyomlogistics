@@ -521,7 +521,7 @@ export default function ManageCompanyItem({
             </Table>
           </div>
 
-          <p className="text-sm text-muted-foreground mt-2">* Tax field is optional | Press "+" to add a new service</p>
+          <p className="text-sm text-muted-foreground mt-2">* Tax field is optional | Press &rdquo;+&rdquo; to add a new service</p>
 
           {/* Totals Section */}
           <div className="mt-6 border-t pt-4">
