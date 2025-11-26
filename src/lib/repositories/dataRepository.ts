@@ -135,7 +135,7 @@ export class DataRepository extends RepositoryBase {
       }
 
       console.log(rootFolders);
-      
+
 
       return this.success(rootFolders);
     } catch (error) {
@@ -146,12 +146,12 @@ export class DataRepository extends RepositoryBase {
   async getFolderById(folderId: number) {
     try {
       let sql = `
-        SELECT df.*
-        FROM data_folders df
-        WHERE df.status = 1
-          AND df.folder_id = ?
-        LIMIT 1
-      `;
+      SELECT df.*
+      FROM data_folders df
+      WHERE df.status = 1
+        AND df.folder_id = ?
+      LIMIT 1
+    `;
 
       const folders = await executeQuery(sql, [folderId]) as Folder[];
 
@@ -160,6 +160,56 @@ export class DataRepository extends RepositoryBase {
       }
 
       const element = folders[0];
+
+      const subFoldersSql = `
+        SELECT df.*
+        FROM data_folders df
+        WHERE df.status = 1
+          AND df.parent_id = ?
+        ORDER BY df.folder_id ASC
+      `;
+
+      const subFolders = await executeQuery(subFoldersSql, [folderId]) as Folder[];
+
+      for (const subFolder of subFolders) {
+        const files = await new QueryBuilder('file_log')
+          .where("associated_type = 'data_file'")
+          .where("status = '1'")
+          .where("associated_id = ?", subFolder.folder_id)
+          .orderBy('id', 'DESC')
+          .select(['id', 'identifier', 'file_type', 'file_name', 'file_size', 'file_mime', 'created_on']);
+
+        subFolder.files = files as DataFile[];
+
+        let permissions = await new QueryBuilder('folder_permissions')
+          .where('folder_id = ?', subFolder.folder_id)
+          .where('user_id = ?', this.userId)
+          .selectOne(['can_create_subfolder', 'can_upload_file', 'can_download_file', 'can_rename', 'can_delete']) as FolderPermissions;
+
+        if (permissions == null) {
+          if (this.userId == '501' || this.userId == '502') {
+            permissions = {
+              can_create_subfolder: true,
+              can_upload_file: true,
+              can_download_file: true,
+              can_rename: true,
+              can_delete: true,
+            };
+          } else {
+            permissions = {
+              can_create_subfolder: false,
+              can_upload_file: false,
+              can_download_file: false,
+              can_rename: false,
+              can_delete: false,
+            };
+          }
+        }
+
+        subFolder.permissions = permissions;
+      }
+
+      element.sub_folders = subFolders;
 
       const files = await new QueryBuilder('file_log')
         .where("associated_type = 'data_file'")
@@ -198,7 +248,6 @@ export class DataRepository extends RepositoryBase {
       element.permissions = permissions;
 
       console.log(element);
-      
 
       return this.success(element);
     } catch (error) {
@@ -271,10 +320,13 @@ export class DataRepository extends RepositoryBase {
     fileId: number
   ) {
     try {
+      const res = await deleteFileFromIdentifier(fileId.toString());
 
-      await deleteFileFromIdentifier(fileId.toString())
+      if (!res.success) {
+        return this.failure(res.error || 'File Deletion Failed');
+      }
 
-      return this.success('File Uploaded Successfully');
+      return this.success('File Deleted Successfully');
     } catch (error) {
       return this.handleError(error);
     }

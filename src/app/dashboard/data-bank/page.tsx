@@ -523,7 +523,7 @@ export default function DataBankModern() {
                     className={`mr-2 w-4 h-4 ${refreshingFolder === folder.folder_id ? "animate-spin" : ""
                       }`}
                   />
-                  Refresh
+                  <div>Refresh</div>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem
@@ -1045,16 +1045,33 @@ export default function DataBankModern() {
 
                   <Card className="flex-1">
                     <Tabs value={activeView} onValueChange={(v) => setActiveView(v as ActiveView)}>
-                      <TabsList className="m-2 md:m-3 flex-wrap">
-                        <TabsTrigger value="files" className="text-xs md:text-sm">
-                          <FileIcon className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
-                          All Content
-                        </TabsTrigger>
-                        <TabsTrigger value="add-folder" className="text-xs md:text-sm">
-                          <Plus className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
-                          Add Folder
-                        </TabsTrigger>
-                      </TabsList>
+                      <div className="flex flex-row justify-between items-center">
+                        <TabsList className="m-2 md:m-3 flex-wrap">
+                          <TabsTrigger value="files" className="text-xs md:text-sm">
+                            <FileIcon className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                            All Content
+                          </TabsTrigger>
+                          <TabsTrigger value="add-folder" className="text-xs md:text-sm">
+                            <Plus className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                            Add Folder
+                          </TabsTrigger>
+                        </TabsList>
+
+                        <Button
+                          className="m-2 md:m-3 flex-wrap hidden md:flex" 
+                          variant={'ghost'}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            refreshFolder(selectedFolder.folder_id);
+                          }}
+                        >
+                          <RefreshCw
+                            className={`mr-2 w-4 h-4 ${refreshingFolder === selectedFolder.folder_id ? "animate-spin" : ""
+                              }`}
+                          />
+                          Refresh
+                        </Button>
+                      </div>
 
                       <TabsContent value="files" className="mt-0 mb-3 mx-2 md:mx-3 max-h-[30rem] overflow-auto">
                         {renderContentItems()}
