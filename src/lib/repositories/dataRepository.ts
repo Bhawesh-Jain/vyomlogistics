@@ -371,11 +371,8 @@ export class DataRepository extends RepositoryBase {
       if (!file) {
         return this.failure('No File Provided');
       }
-      customLog(file);
 
-
-
-      await saveFile(file, file.name, folderId.toString(), this.userId, 'data_file', './uploads/data-bank/', 'user-web-upload');
+      await saveFile(file, file.name, folderId.toString(), 'data_file', this.userId, './uploads/data-bank/', 'user-web-upload');
 
       return this.success('File Uploaded Successfully');
     } catch (error) {

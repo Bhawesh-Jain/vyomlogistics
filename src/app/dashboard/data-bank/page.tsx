@@ -36,9 +36,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
-import { getFolderList, uploadDataFile, getFolderById, deleteDataFile } from "@/lib/actions/data-bank";
+import { getFolderList, getFolderById, deleteDataFile } from "@/lib/actions/data-bank";
 import { DataFile, Folder } from "@/lib/repositories/dataRepository";
-import { FileTransfer } from "@/lib/helpers/file-helper";
 import { formatDateTime } from "@/lib/utils/date";
 import { cn, formatFileSize } from "@/lib/utils";
 import AddFolder from "./blocks/AddItem";
@@ -46,6 +45,7 @@ import { useGlobalDialog } from "@/providers/DialogProvider";
 import FolderPermissions from "./blocks/FolderPermissions";
 import { toast } from "@/hooks/use-toast";
 import { useUser } from "@/contexts/user-context";
+import React from "react";
 
 type ExpandMap = Record<number, boolean>;
 type ViewMode = "grid" | "list";
@@ -275,14 +275,14 @@ export default function DataBankModern() {
         return;
       }
 
-      const data: FileTransfer = {
-        name: file.name,
-        type: file.type,
-        arrayBuffer: Array.from(new Uint8Array(await file.arrayBuffer())),
-      };
+      const formData = new FormData();
+      formData.append("folder_id", String(folderId));
+      formData.append("user_id", String(user.user_id));
+      formData.append("files", file);
 
-      const resp = await uploadDataFile(folderId, data);
-      if (resp.success) {
+      const resp = await fetch("/api/save-file", { method: "POST", body: formData });
+      
+      if (resp.ok) {
         await refreshFolder(folderId);
         toast({
           title: "Success",
@@ -428,48 +428,66 @@ export default function DataBankModern() {
     </Tooltip>
   ), []);
 
-  const TreeItem = useCallback(({ folder, depth = 0 }: { folder: Folder; depth?: number }) => {
+  type TreeItemProps = {
+    folder: Folder;
+    depth?: number;
+  };
+
+  const TreeItem = React.memo(function TreeItem({
+    folder,
+    depth = 0,
+  }: TreeItemProps) {
     const isExpanded = !!expanded[folder.folder_id];
     const isSelected = folder.folder_id === selectedFolderId;
-    const hasChildren = folder.sub_folders && folder.sub_folders.length > 0;
+    const hasChildren = !!folder.sub_folders?.length;
     const isUploading = uploadingFor === folder.folder_id;
     const isDragging = dragOverFolder === folder.folder_id;
     const isLoadingDetails = loadingFolderDetails === folder.folder_id;
 
     const children = useMemo(() => {
-      const sub = folder.sub_folders ?? [];
+      if (!isExpanded || !hasChildren) return null;
 
-      if (!isExpanded || sub.length === 0) return null;
-
-      return sub.map((child) => (
-        <TreeItem key={child.folder_id} folder={child} depth={depth + 1} />
+      return folder.sub_folders!.map((child) => (
+        <TreeItem
+          key={child.folder_id}
+          folder={child}
+          depth={depth + 1}
+        />
       ));
-    }, [isExpanded, folder.folder_id, depth]);
-
+    }, [isExpanded, hasChildren, folder.sub_folders, depth]);
 
     return (
-      <div key={folder.folder_id} className="group">
+      <div className="group">
         <div
           onClick={() => selectFolder(folder.folder_id)}
-          onKeyDown={(e) => { if (e.key === "Enter") selectFolder(folder.folder_id); }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") selectFolder(folder.folder_id);
+          }}
           role="button"
           tabIndex={0}
           className={`flex items-center justify-between gap-2 cursor-pointer rounded-lg px-3 py-2 transition-all duration-200 mb-1
-            ${isSelected ? "bg-blue-50 border border-blue-200 shadow-sm" : "hover:bg-gray-50 border border-transparent"}
-            ${isDragging ? "border-dashed border-blue-300 bg-blue-25" : ""}`}
+          ${isSelected
+              ? "bg-blue-50 border border-blue-200 shadow-sm"
+              : "hover:bg-gray-50 border border-transparent"
+            }
+          ${isDragging ? "border-dashed border-blue-300 bg-blue-25" : ""}`}
           style={{ marginLeft: `${depth * 12}px` }}
         >
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <div className="flex items-center gap-1">
               {hasChildren ? (
                 <button
-                  onClick={(e) => { e.stopPropagation(); toggleExpand(folder.folder_id); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleExpand(folder.folder_id);
+                  }}
                   className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  {isExpanded ?
-                    <ChevronDown className="w-4 h-4 text-gray-600" /> :
+                  {isExpanded ? (
+                    <ChevronDown className="w-4 h-4 text-gray-600" />
+                  ) : (
                     <ChevronRight className="w-4 h-4 text-gray-600" />
-                  }
+                  )}
                 </button>
               ) : (
                 <span className="w-6 h-6" />
@@ -477,8 +495,12 @@ export default function DataBankModern() {
             </div>
 
             <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className={`p-2 rounded-lg ${isSelected ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-600"
-                }`}>
+              <div
+                className={`p-2 rounded-lg ${isSelected
+                  ? "bg-blue-100 text-blue-600"
+                  : "bg-gray-100 text-gray-600"
+                  }`}
+              >
                 <FolderIcon className="w-4 h-4" />
               </div>
 
@@ -492,6 +514,7 @@ export default function DataBankModern() {
                     <Loader2 className="w-3 h-3 animate-spin text-gray-400" />
                   )}
                 </div>
+
                 <div className="text-xs text-gray-500 truncate flex items-center gap-2 mt-1">
                   <span>{folder.files.length} files</span>
                 </div>
@@ -558,7 +581,9 @@ export default function DataBankModern() {
                   }}
                 >
                   <RefreshCw
-                    className={`mr-2 w-4 h-4 ${refreshingFolder === folder.folder_id ? "animate-spin" : ""
+                    className={`mr-2 w-4 h-4 ${refreshingFolder === folder.folder_id
+                      ? "animate-spin"
+                      : ""
                       }`}
                   />
                   Refresh
@@ -588,33 +613,10 @@ export default function DataBankModern() {
           />
         </div>
 
-        {/* Only use AnimatePresence when we actually have children to show/hide */}
-        {hasChildren && (
-          // <AnimatePresence>
-          <>
-            {isExpanded && (
-              // <motion.div
-              //   key={`children-${folder.folder_id}`}
-              //   initial={{ height: 0, opacity: 0 }}
-              //   animate={{ height: "auto", opacity: 1 }}
-              //   exit={{ height: 0, opacity: 0 }}
-              //   transition={{ duration: 0.2 }}
-              // >
-              <>
-                {children}
-              </>
-              // </motion.div>
-            )}
-          </>
-          // </AnimatePresence>
-        )}
+        {hasChildren && isExpanded && <>{children}</>}
       </div>
     );
-  }, [
-    expanded, selectedFolderId, uploadingFor, dragOverFolder, refreshingFolder,
-    loadingFolderDetails, toggleExpand, selectFolder, openFileInput, refreshFolder,
-    onFileInputChange, handleAddSubfolder, handleOpenPermissions, FolderNameWithTooltip
-  ]);
+  });
 
   const selectedFolder = useMemo(() => findFolderById(selectedFolderId), [findFolderById, selectedFolderId]);
   const breadcrumbPath = useMemo(() => getBreadcrumbPath(selectedFolderId), [getBreadcrumbPath, selectedFolderId]);

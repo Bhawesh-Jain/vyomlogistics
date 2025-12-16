@@ -71,8 +71,6 @@ export async function uploadDataFile(id: number, fileData: FileTransfer) {
   // Create File
   const file = new File([blob], fileData.name, { type: fileData.type });
 
-  console.log("file:", file);
-
   const userRepository = new DataRepository(session.user_id);
   return await userRepository.uploadDataFile(id, file);
 }
