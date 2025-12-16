@@ -107,7 +107,7 @@ export function AllCompaniesOverview({ data }: AllCompaniesOverviewProps) {
             {companyBreakdown.map((company: any) => (
               <div
                 key={company.company_id}
-                className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                className="flex flex-col gap-2 lg:flex-row lg:items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
               >
                 <div className="flex items-center space-x-4 flex-1">
                   <div className="h-12 w-12 rounded-full bg-blue-50 flex items-center justify-center">
@@ -132,7 +132,7 @@ export function AllCompaniesOverview({ data }: AllCompaniesOverviewProps) {
                 </div>
 
                 <div className="text-right space-y-2">
-                  <div className="flex items-center justify-end space-x-2">
+                  <div className="flex items-center lg:justify-end space-x-2">
                     <IndianRupee className="h-4 w-4 text-green-600" />
                     <p className="font-bold text-lg">{company.monthly_revenue.toLocaleString()}</p>
                   </div>
