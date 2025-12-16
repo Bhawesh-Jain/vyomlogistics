@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonTooltip } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useGlobalDialog } from "@/providers/DialogProvider";
-import { Users, Calendar, DollarSign, Square, Plus, Building2, Clock } from "lucide-react";
+import { Users, Calendar, DollarSign, Square, Plus, Building2, Clock, Trash } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import AllocateSpaceDialog from "./AllocateSpaceDialog";
 import { GodownSpaceAllocation } from "@/lib/repositories/warehouseRepository";
@@ -14,12 +14,12 @@ import { getAllSpaces } from "@/lib/actions/warehouse";
 import { getCurrencySymbol, getStatusName } from "@/lib/utils";
 import { MoneyHelper } from "@/lib/helpers/money-helper";
 import formatDate from "@/lib/utils/date";
+import { Container } from "@/components/ui/container";
 
 export default function SpaceManagement({ godownId, capacityUnit, totalArea }: { godownId: number, capacityUnit: string, totalArea: number }) {
   const [spaces, setSpaces] = useState<GodownSpaceAllocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAllocateDialog, setShowAllocateDialog] = useState(false);
-  const { showError } = useGlobalDialog();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -32,8 +32,6 @@ export default function SpaceManagement({ godownId, capacityUnit, totalArea }: {
 
     if (data.success) {
       setSpaces(data.result);
-    } else {
-      showError(data.error || "Failed to load spaces", '');
     }
     setLoading(false);
   };
@@ -78,7 +76,7 @@ export default function SpaceManagement({ godownId, capacityUnit, totalArea }: {
       {/* Header Card */}
       <Card>
         <CardContent className="p-6">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col lg:flex-row justify-between items-start gap-3">
             <div>
               <h2 className="text-2xl font-bold">Space Allocations</h2>
               <p className="text-muted-foreground">
@@ -94,7 +92,7 @@ export default function SpaceManagement({ godownId, capacityUnit, totalArea }: {
       </Card>
 
       {/* Statistics Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -164,7 +162,7 @@ export default function SpaceManagement({ godownId, capacityUnit, totalArea }: {
       <div className="grid gap-4">
         {spaces.map((space) => (
           <Card key={space.allocation_id} className="p-6 hover:shadow-md transition-shadow">
-            <div className="flex items-start justify-between">
+            <div className="flex flex-col lg:flex-row gap-3 items-start justify-between">
               <div className="space-y-4 flex-1">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-primary/10 rounded-lg">
@@ -216,18 +214,37 @@ export default function SpaceManagement({ godownId, capacityUnit, totalArea }: {
                 )}
               </div>
 
-              <div className="ml-6 text-right min-w-[120px]">
-                <div className="text-sm font-medium mb-2">Utilization</div>
-                <Progress
-                  value={(space.space_allocated / totalArea) * 100}
-                  className={`w-24 h-2 ${getUtilizationColor((space.space_allocated / totalArea) * 100)}`}
-                />
-                <div className="text-xs text-muted-foreground mt-1">
-                  {space.space_allocated} / {totalArea} {capacityUnit}
+              <div className="lg:ml-6 w-full lg:w-1/5 flex flex-row items-center gap-4">
+
+                <div className="flex-1">
+                  <div className="text-sm font-medium mb-2">Utilization</div>
+
+                  <Progress
+                    value={(space.space_allocated / totalArea) * 100}
+                    className={`w-full h-2 ${getUtilizationColor(
+                      (space.space_allocated / totalArea) * 100
+                    )}`}
+                  />
+
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {space.space_allocated} / {totalArea} {capacityUnit}
+                  </div>
+
+                  <div className="text-sm font-medium mt-2">
+                    {((space.space_allocated / totalArea) * 100).toFixed(1)}%
+                  </div>
                 </div>
-                <div className="text-sm font-medium mt-2">
-                  {((space.space_allocated / totalArea) * 100).toFixed(1)}%
+
+                <div className="flex md:justify-end">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="text-destructive"
+                  >
+                    <Trash className="h-4 w-4" />
+                  </Button>
                 </div>
+
               </div>
             </div>
           </Card>
