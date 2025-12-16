@@ -43,7 +43,7 @@ export default async function DashboardLayout({
                 <Separator orientation="vertical" className="h-5" />
                 <TopBar user={user} />
               </header>
-              <div className="flex flex-1 flex-col gap-4 px-4 py-4 pt-0">
+              <div className="flex flex-1 flex-col gap-4 md:px-4 py-4 pt-0">
                 {children}
               </div>
             </App>

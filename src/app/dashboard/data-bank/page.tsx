@@ -78,7 +78,7 @@ export default function DataBankModern() {
   const { user } = useUser();
 
   const canEditPermissions = user.role == '1' || user.role == '2';
-
+  
   const loadFolders = useCallback(async () => {
     try {
       setLoading(true);
@@ -1247,10 +1247,10 @@ export default function DataBankModern() {
                         <p className="text-gray-500 mb-6 text-sm md:text-base">
                           Choose a folder from the sidebar to view its contents
                         </p>
-                        <Button onClick={handleAddRootFolder} size="sm">
+                        {canEditPermissions && <Button onClick={handleAddRootFolder} size="sm">
                           <Plus className="w-4 h-4 mr-2" />
                           Create Folder
-                        </Button>
+                        </Button>}
                       </CardContent>
                     </Card>}
                 </>
