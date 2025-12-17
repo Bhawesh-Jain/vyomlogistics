@@ -83,7 +83,7 @@ export default function DashboardPage() {
 
       {/* Critical Alerts */}
       {criticalExpiring.length > 0 && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className='z-0'>
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
             You have {criticalExpiring.length} items that have expired or are expiring within 7 days.
