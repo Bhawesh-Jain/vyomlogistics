@@ -93,11 +93,10 @@ export class UserRepository extends RepositoryBase {
           SELECT u.*
           FROM users u
           WHERE u.id = ?
-            AND u.company_id = ?
             AND u.status > 0
           GROUP BY u.id
           LIMIT 1
-        `, [userId, this.companyId]);
+        `, [userId]);
 
       if (user && user.length > 0) {
         return this.success(user[0])
@@ -133,7 +132,6 @@ export class UserRepository extends RepositoryBase {
     try {
       var users = await this.queryBuilder
         .where('role = ?', roleId)
-        .where('company_id = ?', this.companyId)
         .select(['*']);
 
       if (users && users.length > 0) {
@@ -244,7 +242,7 @@ export class UserRepository extends RepositoryBase {
             AND company_id = ?
         `, [data.role, this.companyId, data.role, this.companyId]);
 
-        return this.success('User created successfully');
+        return this.success({ message: 'User created successfully', userId: result });
       }
       return this.failure('User not created');
     } catch (error) {

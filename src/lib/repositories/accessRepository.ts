@@ -1,4 +1,4 @@
-import { QueryBuilder } from "../helpers/db-helper";
+import { executeQuery, QueryBuilder } from "../helpers/db-helper";
 import { buildTree, PermissionItem } from "../helpers/permission-helper";
 import { RepositoryBase } from "../helpers/repository-base"
 
@@ -6,6 +6,7 @@ export interface Role {
   id: string;
   role_name: string;
   user_count: number;
+  permissions_version: number;
   permissions: string;
   department: string;
 }
@@ -28,7 +29,6 @@ export class AccessRepository extends RepositoryBase {
   ) {
     try {
       const query = this.roleBuilder
-        .where('? in (company_id)', this.companyId)
         .where('status = ?', 1);
 
       if (role != '1') {
@@ -47,8 +47,6 @@ export class AccessRepository extends RepositoryBase {
   async getAllPermissions() {
     try {
       const result = await this.moduleBuilder
-        .orWhere('? in (company_id)', this.companyId)
-        .orWhere('company_id is NULL')
         .where('status = ?', 1)
         .select(['id', 'parent_id', 'url', 'title', 'menu_order'])
 
@@ -62,7 +60,15 @@ export class AccessRepository extends RepositoryBase {
 
   async updateRolePermissions(roleId: string, permissions: number[]) {
     try {
-      await this.roleBuilder.where('id = ?', roleId).update({ permissions: permissions.join(',') });
+      const role = await new QueryBuilder('roles')
+        .where('id = ?', roleId)
+        .selectOne() as Role;
+
+      if (!role) {
+        return this.handleError('Invalid Role!');
+      }
+
+      await new QueryBuilder('roles').where('id = ?', roleId).update({ permissions: permissions.join(','), permissions_version: role.permissions_version + 1 });
       return this.success(true);
     } catch (error) {
       return this.handleError(error);
@@ -92,5 +98,17 @@ export class AccessRepository extends RepositoryBase {
       return this.handleError(error);
     }
   }
+
+
+
+  async getRolePermissionVersion(roleId: string): Promise<number> {
+    const result = await executeQuery<{ permissions_version: number }[]>(
+      "SELECT permissions_version FROM roles WHERE id = ?",
+      [roleId]
+    );
+
+    return result[0]?.permissions_version ?? 0;
+  }
+
 }
 

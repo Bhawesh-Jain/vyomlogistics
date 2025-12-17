@@ -1,27 +1,53 @@
-import { NextResponse, userAgent } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { validateSession } from './lib/session';
+import { NextResponse, userAgent } from "next/server";
+import type { NextRequest } from "next/server";
+import { getSession } from "@/lib/session";
 
-export async function middleware(request: NextRequest) {
+/**
+ * Lightweight dashboard middleware
+ * - Session check
+ * - Device & IP tracking
+ */
+export default async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
   const response = NextResponse.next();
+
+  /* -----------------------------
+   * Device & IP fingerprinting
+   * ----------------------------- */
   const device = JSON.stringify(userAgent(request));
-  const ip = request.ip || request.headers.get('x-real-ip');
+  const ip =
+    request.ip ||
+    request.headers.get("x-real-ip") ||
+    request.headers.get("x-forwarded-for");
 
-  response.cookies.set('client-ip', ip || 'undefined-mw');
-  response.cookies.set('device-info', device || '');
+  response.cookies.set("client-ip", ip || "undefined-mw", {
+    httpOnly: false,
+    sameSite: "lax",
+  });
 
-  try {
-    await validateSession();
-  } catch (error) {
+  response.cookies.set("device-info", device || "", {
+    httpOnly: false,
+    sameSite: "lax",
+  });
+
+  /* -----------------------------
+   * Basic session existence check
+   * ----------------------------- */
+  const session = await getSession();
+
+  if (!session.isLoggedIn || !session.user_id || !session.company_id) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("from", request.nextUrl.pathname);
+    url.searchParams.set("from", pathname);
     return NextResponse.redirect(url);
   }
 
   return response;
 }
 
+/* -----------------------------
+ * Apply only to dashboard
+ * ----------------------------- */
 export const config = {
-  matcher: '/dashboard/:path*',
-}
+  matcher: "/dashboard/:path*"
+};

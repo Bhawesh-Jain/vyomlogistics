@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { findFirstAccessibleUrl } from "@/lib/helpers/permission-helper"
 
 const loginSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters long"),
@@ -40,7 +41,7 @@ export function LoginForm({
     setIsLoading(true)
 
     try {
- 
+
       const formData = new FormData()
       formData.append("username", values.username)
       formData.append("password", values.password)
@@ -48,7 +49,9 @@ export function LoginForm({
       const res = await handleLoginForm(formData)
 
       if (res.success) {
-        router.push('/dashboard');
+        const firstPage = findFirstAccessibleUrl(res.menu);
+        
+        router.push(firstPage ?? "/unauthorized");
       } else {
         toast({
           variant: "destructive",

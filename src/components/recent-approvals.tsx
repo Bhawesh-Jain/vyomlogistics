@@ -3,6 +3,7 @@
 import { Column, DataTable } from "@/components/data-table/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import formatDate from "@/lib/utils/date";
 import { FileTextIcon } from "lucide-react";
 
 interface dum {
@@ -107,7 +108,7 @@ const columns: Column<dum>[] = [
     header: "Date",
     visible: true,
     accessorKey: "date",
-    cell: (row) => new Date(row.date).toLocaleDateString('en-IN')
+    cell: (row) => formatDate(row.date)
   }
 ];
 

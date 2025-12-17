@@ -30,6 +30,8 @@ export default async function DashboardLayout({
       company_id: session.company_id,
       company_abbr: session.company_abbr,
       role: session.role,
+      allowedRoutes: session.allowedRoutes,
+      permissionsVersion: session.permissionsVersion
     }
 
     return ( 
@@ -43,7 +45,7 @@ export default async function DashboardLayout({
                 <Separator orientation="vertical" className="h-5" />
                 <TopBar user={user} />
               </header>
-              <div className="flex flex-1 flex-col gap-4 px-4 py-4 pt-0">
+              <div className="flex flex-1 flex-col gap-4 md:px-4 py-4 pt-0">
                 {children}
               </div>
             </App>

@@ -11,7 +11,7 @@ import { getOrganizationById, getServiceNames, saveOrganizationServices } from "
 import { InvoiceItems, Organization } from "@/lib/repositories/organizationRepository";
 import { SpinnerItem } from "@/components/ui/default-form-field";
 import Loading from "@/app/dashboard/loading";
-import formatDate from "@/lib/utils/date";
+import formatDate, { formatDateTime } from "@/lib/utils/date";
 
 // Table components
 const Table = ({ children, className = "" }: any) => (
@@ -189,7 +189,7 @@ export default function ManageCompanyItem({
           ${printContent.innerHTML}
           <div class="footer">
             <p>This is a monthly fees record for internal tracking purposes only.</p>
-            <p>Generated on ${new Date().toLocaleDateString()}</p>
+            <p>Generated on ${formatDateTime(new Date().toISOString())}</p>
           </div>
           <script>
             window.onload = function() { window.print(); window.close(); }

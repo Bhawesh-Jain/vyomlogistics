@@ -3,6 +3,7 @@ import { RepositoryBase } from "../helpers/repository-base"
 import { FolderFormValues } from "@/app/dashboard/data-bank/blocks/AddItem";
 import { File } from "fetch-blob/file.js";
 import { deleteFileFromIdentifier, saveFile } from "../helpers/file-helper";
+import { customLog } from "../utils";
 
 export interface Folder {
   folder_id: number;
@@ -80,7 +81,6 @@ export class DataRepository extends RepositoryBase {
         `;
       }
 
-
       const flatFolders = await executeQuery(sql) as Folder[];
 
       if (flatFolders.length === 0) {
@@ -103,6 +103,8 @@ export class DataRepository extends RepositoryBase {
           const parent = folderMap.get(folder.parent_id);
           if (parent) {
             parent.sub_folders!.push(folder);
+          } else {
+            rootFolders.push(folder);
           }
         } else {
           rootFolders.push(folder);
@@ -371,7 +373,7 @@ export class DataRepository extends RepositoryBase {
         return this.failure('No File Provided');
       }
 
-      await saveFile(file, file.name, folderId.toString(), this.userId, 'data_file', './uploads/data-bank/', 'user-web-upload');
+      await saveFile(file, file.name, folderId.toString(), 'data_file', this.userId, './uploads/data-bank/', 'user-web-upload');
 
       return this.success('File Uploaded Successfully');
     } catch (error) {

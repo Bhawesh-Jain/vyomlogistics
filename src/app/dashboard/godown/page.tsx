@@ -6,7 +6,7 @@ import { Container } from "@/components/ui/container";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGlobalDialog } from "@/providers/DialogProvider";
 import { Button, ButtonTooltip } from "@/components/ui/button";
-import { Edit2, Trash, Warehouse, MapPin, DollarSign, PieChart, Square, Users } from "lucide-react";
+import { Edit2, Trash, Warehouse, MapPin, Square, Users } from "lucide-react";
 import AddGodown from "./blocks/AddItem";
 import SpaceManagement from "./blocks/SpaceManagement";
 import { Godown } from "@/lib/repositories/warehouseRepository";
@@ -14,7 +14,6 @@ import { getAllGodowns, deleteGodown } from "@/lib/actions/warehouse";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getCurrencySymbol } from "@/lib/utils";
 import { MoneyHelper } from "@/lib/helpers/money-helper";
 
 export default function WarehouseManagement() {
@@ -137,7 +136,7 @@ export default function WarehouseManagement() {
       cell: (row) => (
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="font-medium">{MoneyHelper.formatRupees(row.monthly_rent)} / month</span>
+            <span className="font-medium">{MoneyHelper.formatRupees(row.total_rent_collected)} / month</span>
           </div>
           <div className="text-xs text-muted-foreground">
             Rent for entire godown
@@ -241,7 +240,7 @@ export default function WarehouseManagement() {
             </TabsTrigger>
             <TabsTrigger 
               value="spaces" 
-              className="flex items-center gap-2"
+              className="flex flex-col lg:flex-row items-center gap-2"
               disabled={!selectedGodown}
             >
               <Square className="h-4 w-4" />
