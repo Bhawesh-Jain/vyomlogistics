@@ -50,7 +50,7 @@ export function LoginForm({
 
       if (res.success) {
         const firstPage = findFirstAccessibleUrl(res.menu);
-
+        
         router.push(firstPage ?? "/unauthorized");
       } else {
         toast({

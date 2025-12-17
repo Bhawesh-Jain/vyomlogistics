@@ -59,3 +59,14 @@ export function findFirstAccessibleUrl(menu: PermissionItem[]): string | null {
   }
   return null;
 }
+
+export function extractAllowedRoutes(
+  menu: PermissionItem[],
+  acc: string[] = []
+): string[] {
+  for (const item of menu) {
+    if (item.url) acc.push(item.url);
+    if (item.items) extractAllowedRoutes(item.items, acc);
+  }
+  return acc;
+}
