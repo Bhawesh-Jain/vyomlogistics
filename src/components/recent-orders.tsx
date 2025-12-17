@@ -3,6 +3,7 @@
 import { Column, DataTable } from "@/components/data-table/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import formatDate from "@/lib/utils/date";
 import { Package2Icon, ExternalLinkIcon, EyeIcon } from "lucide-react";
 
 interface OrderData {
@@ -123,7 +124,7 @@ export function RecentOrders({ onViewOrderHistory }: { onViewOrderHistory: (id: 
       header: "Date",
       visible: true,
       accessorKey: "date",
-      cell: (row) => new Date(row.date).toLocaleDateString('en-IN')
+      cell: (row) => formatDate(row.date)
     },
     {
       id: "actions",

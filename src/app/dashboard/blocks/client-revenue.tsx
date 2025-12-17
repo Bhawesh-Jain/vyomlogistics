@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { IndianRupee, User, Phone, Calendar, Warehouse, FileText, TrendingUp, AlertCircle, Building2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useState } from 'react';
+import { MoneyHelper } from '@/lib/helpers/money-helper';
 
 interface ClientRevenueProps {
   clients: any[];
@@ -101,7 +102,7 @@ export function ClientRevenue({ clients }: ClientRevenueProps) {
             return (
               <div
                 key={client.org_id}
-                className={`border-b last:border-0 sm:border sm:rounded-xl transition-all duration-200 ${getRevenueColor(totalRevenue)} border mx-4 sm:mx-0`}
+                className={`border-b last:border-0 sm:border sm:rounded-xl transition-all duration-200 ${getRevenueColor(totalRevenue)} border md:mx-4 sm:mx-0`}
               >
                 <div 
                   className="p-4 sm:p-6 cursor-pointer sm:cursor-default"
@@ -290,23 +291,23 @@ export function ClientRevenue({ clients }: ClientRevenueProps) {
         </div>
 
         {/* Summary Footer */}
-        <div className="mt-6 p-4 bg-gradient-to-r from-gray-50 to-slate-50 border-t sm:border sm:rounded-lg mx-4 sm:mx-0">
+        <div className="mt-6 p-4 bg-gradient-to-r from-gray-50 to-slate-50 border-t sm:border sm:rounded-lg md:mx-4 sm:mx-0">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="text-center">
               <div className="text-xs sm:text-sm text-muted-foreground">Total Clients</div>
-              <div className="text-lg sm:text-2xl font-bold">{clients.length}</div>
+              <div className="text-lg sm:text-xl font-bold">{clients.length}</div>
             </div>
             <div className="text-center">
               <div className="text-xs sm:text-sm text-muted-foreground">Total Revenue</div>
-              <div className="text-lg sm:text-2xl font-bold text-green-600">₹{calculateTotalRevenue().toLocaleString()}</div>
+              <div className="text-lg sm:text-xl font-bold text-green-600">{MoneyHelper.formatRupees(calculateTotalRevenue())}</div>
             </div>
             <div className="text-center">
               <div className="text-xs sm:text-sm text-muted-foreground">Avg. Per Client</div>
-              <div className="text-lg sm:text-2xl font-bold">₹{calculateAvgRevenue().toLocaleString()}</div>
+              <div className="text-lg sm:text-xl font-bold">{MoneyHelper.formatRupees(calculateAvgRevenue())}</div>
             </div>
             <div className="text-center">
               <div className="text-xs sm:text-sm text-muted-foreground">Storage Clients</div>
-              <div className="text-lg sm:text-2xl font-bold text-blue-600">
+              <div className="text-lg sm:text-xl font-bold text-blue-600">
                 {clients.filter(c => (parseFloat(c.monthly_rent) || 0) > 0).length}
               </div>
             </div>

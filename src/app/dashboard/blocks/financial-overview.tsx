@@ -84,7 +84,7 @@ export function FinancialOverview({ data }: FinancialOverviewProps) {
       {/* Mobile-first grid with responsive columns */}
       <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat, index) => (
-          <Card key={index} className="hover:shadow-md transition-all duration-200">
+          <Card key={index} className="hover:shadow-md transition-all duration-200 h-full justify-between flex flex-col">
             <CardHeader className="flex flex-row items-start justify-between space-y-0 p-4 sm:p-6">
               <div className="space-y-1">
                 <CardTitle className="text-sm font-medium leading-none">{stat.title}</CardTitle>

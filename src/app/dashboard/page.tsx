@@ -15,6 +15,7 @@ import { AllCompaniesOverview } from './blocks/all-companies-overview';
 import { MoneyHelper } from '@/lib/helpers/money-helper';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import formatDate from '@/lib/utils/date';
 
 export default function DashboardPage() {
   const [selectedCompany, setSelectedCompany] = useState<number | null>(null);
@@ -135,12 +136,7 @@ export default function DashboardPage() {
           <div className="flex items-center space-x-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">
-              {new Date().toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              })}
+              {formatDate(new Date().toISOString())}
             </span>
           </div>
           {companyData && (
@@ -227,12 +223,12 @@ export default function DashboardPage() {
           {loadingStates.companyData ? (
             <CompanyDataSkeleton />
           ) : companyData ? (
-            <>
+            <div>
               {/* Financial Overview */}
               <FinancialOverview data={companyData} />
 
-              <div className="grid gap-4 lg:grid-cols-2">
-                <div className="xl:col-span-6 gap-4 grid grid-cols-2">
+              <div className="flex flex-col lg:grid gap-4 lg:grid-cols-2">
+                <div className="xl:col-span-6 gap-4 flex flex-col lg:grid lg:grid-cols-2 mt-2">
                   {/* Expiring Items with refresh button */}
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -273,7 +269,7 @@ export default function DashboardPage() {
                   <GodownPerformance godowns={companyData.godownPerformance} />
                 </div>
               </div>
-            </>
+            </div>
           ) : (
             <NoCompanyDataMessage />
           )}
@@ -330,7 +326,7 @@ function CompanyDataSkeleton() {
 // Quick Stats Card Component
 function QuickStatsCard({ data }: { data: any }) {
   return (
-    <Card>
+    <Card className='h-fit'>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">Quick Stats</CardTitle>
         <Building2 className="h-4 w-4 text-muted-foreground" />
