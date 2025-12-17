@@ -285,13 +285,6 @@ export class MiscRepository extends RepositoryBase {
          FINAL RESPONSE
          ========================================================= */
 
-      console.log({
-        financial: financialSummary[0] || {},
-        clientRevenue,
-        godownPerformance,
-        summaryDate: new Date().toISOString()
-      });
-      
       return this.success({
         financial: financialSummary[0] || {},
         clientRevenue,

@@ -3,7 +3,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { IndianRupee, User, Phone, Calendar, Warehouse } from 'lucide-react';
+import { IndianRupee, User, Phone } from 'lucide-react';
 
 interface ClientRevenueProps {
   clients: any[];
