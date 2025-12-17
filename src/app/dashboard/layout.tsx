@@ -30,6 +30,8 @@ export default async function DashboardLayout({
       company_id: session.company_id,
       company_abbr: session.company_abbr,
       role: session.role,
+      allowedRoutes: session.allowedRoutes,
+      permissionsVersion: session.permissionsVersion
     }
 
     return ( 

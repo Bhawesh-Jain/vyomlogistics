@@ -17,6 +17,8 @@ export type UserData = {
   company_id: string;
   company_abbr: string;
   role: string;
+  permissionsVersion?: number;
+  allowedRoutes?: string[];
 };
 
 
