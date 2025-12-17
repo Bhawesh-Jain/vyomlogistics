@@ -99,6 +99,7 @@ export class MiscRepository extends RepositoryBase {
       const companies = await executeQuery(`
         SELECT DISTINCT cm.* 
         FROM company_master cm
+        WHERE cm.is_active = 1
         ORDER BY cm.company_name
       `, []) as any[];
 
@@ -252,168 +253,189 @@ export class MiscRepository extends RepositoryBase {
     }
   }
 
-  async getAllCompaniesSummary() {
+  async getDashboardData() {
     try {
-      // Get all companies the user owns/accesses
-      const companiesResult = await this.getUserCompanies();
-      if (!companiesResult.success) return companiesResult;
+      let sql = `
+        SELECT SUM(it.total) as total_invoice_amount
+        FROM invoice_items it
+        LEFT JOIN organizations o ON o.org_id = it.org_id
+        WHERE o.status = 1
+          AND it.status = 1
+      `;
+      const totalInvoiceAmount = Number((await executeQuery(sql) as any[])[0].total_invoice_amount);
 
-      const companies = companiesResult.result;
+      sql = `
+        SELECT COALESCE(SUM(a.space_allocated), 0) AS total_space_allocated,
+          COALESCE(SUM(a.monthly_rent), 0) AS total_rent_collected
+        FROM godowns g
+        LEFT JOIN godown_space_allocations a 
+          ON g.godown_id = a.godown_id 
+          AND a.status = 1
+        LEFT JOIN organization_agreements oa 
+          ON oa.agreement_id = a.agreement_id 
+          AND oa.status > 0 
+          AND CURDATE() BETWEEN oa.start_date AND oa.valid_upto
+        WHERE g.is_active = 1
+          AND a.status = 1
+          AND (oa.agreement_id IS NULL OR oa.org_id = a.org_id)
+        GROUP BY g.godown_id
+        ORDER BY g.godown_name ASC
+      `;
+      const godownSummary = (await executeQuery(sql) as any[]);
+      const totalSpaceAllocated = godownSummary.reduce((accumulator, currentValue) => Number(accumulator) + Number(currentValue.total_space_allocated), 0)
+      const totalRentCollected = godownSummary.reduce((accumulator, currentValue) => Number(accumulator) + Number(currentValue.total_rent_collected), 0)
 
-      // Aggregate data across all companies
-      const allCompaniesSummary = await executeQuery(`
-      SELECT 
-        -- Overall Business Metrics
-        COUNT(DISTINCT cm.company_id) as total_companies,
-        COUNT(DISTINCT o.org_id) as total_clients,
-        COUNT(DISTINCT CASE WHEN o.status = 1 THEN o.org_id END) as active_clients,
-        
-        -- Agreement & License Metrics
-        COUNT(DISTINCT oa.agreement_id) as total_agreements,
-        COUNT(DISTINCT CASE WHEN oa.status = 1 AND oa.valid_upto >= CURDATE() THEN oa.agreement_id END) as active_agreements,
-        COUNT(DISTINCT CASE WHEN oa.status = 1 AND oa.valid_upto BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY) THEN oa.agreement_id END) as expiring_agreements,
-        
-        -- Godown & Space Metrics
-        COUNT(DISTINCT g.godown_id) as total_godowns,
-        COALESCE(SUM(g.total_capacity), 0) as total_capacity,
-        COALESCE(SUM(gsa.space_allocated), 0) as total_allocated_space,
-        (COALESCE(SUM(gsa.space_allocated), 0) / COALESCE(SUM(g.total_capacity), 1) * 100) as overall_utilization_rate,
-        
-        -- Financial Metrics
-        COALESCE(SUM(gsa.monthly_rent), 0) as total_monthly_revenue,
-        COALESCE(SUM(g.monthly_rent), 0) as total_godown_rent,
-        (COALESCE(SUM(gsa.monthly_rent), 0) - COALESCE(SUM(g.monthly_rent), 0)) as total_net_profit,
-        
-        -- Billing Metrics
-        COUNT(DISTINCT br.bill_id) as total_invoices,
-        COALESCE(SUM(CASE WHEN br.status = 'paid' THEN br.grand_total ELSE 0 END), 0) as total_collected,
-        COALESCE(SUM(CASE WHEN br.status IN ('generated', 'sent') THEN br.grand_total ELSE 0 END), 0) as total_pending
-        
-      FROM company_master cm
-      LEFT JOIN organizations o ON cm.company_id = o.company_id
-      LEFT JOIN organization_agreements oa ON o.org_id = oa.org_id
-      LEFT JOIN godowns g ON cm.company_id = g.company_id
-      LEFT JOIN godown_space_allocations gsa ON g.godown_id = gsa.godown_id AND gsa.status = 1
-      LEFT JOIN billing_records br ON cm.company_id = br.org_id
-    `, []) as any[];
+      const totalMonthlyRevenue = Number(totalInvoiceAmount) + Number(totalRentCollected);
 
-      const totalSpace = await executeQuery(`
-          SELECT SUM(total_capacity) as total_available_space
+      sql = `
+        SELECT COUNT(*) as total_clients
+        FROM organizations
+        WHERE status = 1
+      `;
+      const totalClients = Number((await executeQuery(sql) as any[])[0].total_clients);
+
+      sql = `
+        SELECT SUM(monthly_rent) as monthly_rent,
+          SUM(total_capacity) as total_capacity
+        FROM godowns
+        WHERE is_active = 1
+      `;
+      const godownTotals = (await executeQuery(sql) as any[])[0];
+      const totalGodownRent = Number(godownTotals.monthly_rent);
+      const totalGodownSpace = Number(godownTotals.total_capacity);
+
+      const totalSpaceUtilizaton = Number(((totalSpaceAllocated / totalGodownSpace) * 100).toFixed(2));
+
+      sql = `
+        SELECT SUM(e.salary) as monthly_salary
+        FROM employees e
+        LEFT JOIN users u ON e.user_id = u.id
+        WHERE e.status = 1
+          AND u.status = 1
+      `;
+      const totalMonthlySalary = Number((await executeQuery(sql) as any[])[0].monthly_salary);
+
+      const netMonthlyProfit = Number(totalMonthlyRevenue) - Number(totalGodownRent) - Number(totalMonthlySalary);
+
+      sql = `
+        SELECT
+          cm.company_id,
+          cm.company_name,
+          cm.abbr,
+          cm.currency_symbol,
+
+          COALESCE(c.client_count, 0) AS client_count,
+          COALESCE(a.agreement_count, 0) AS agreement_count,
+          COALESCE(g.godown_count, 0) AS godown_count,
+
+          COALESCE(g.total_capacity, 0) AS total_capacity,
+          COALESCE(sa.allocated_space, 0) AS allocated_space,
+
+          /* Revenues */
+          COALESCE(inv.invoice_revenue, 0) AS invoice_revenue,
+          COALESCE(sa.storage_revenue, 0) AS storage_revenue,
+          (COALESCE(inv.invoice_revenue, 0) + COALESCE(sa.storage_revenue, 0)) AS total_revenue,
+
+          /* Costs */
+          COALESCE(g.total_godown_rent, 0) AS godown_rent,
+          COALESCE(s.salary_cost, 0) AS salary_cost,
+
+          /* Net profit */
+          (
+            COALESCE(inv.invoice_revenue, 0)
+            + COALESCE(sa.storage_revenue, 0)
+            - COALESCE(g.total_godown_rent, 0)
+            - COALESCE(s.salary_cost, 0)
+          ) AS net_profit,
+
+          /* Utilization */
+          (
+            COALESCE(sa.allocated_space, 0)
+            / COALESCE(g.total_capacity, 1) * 100
+          ) AS utilization_rate
+
+        FROM company_master cm
+
+        LEFT JOIN (
+          SELECT company_id, COUNT(*) AS client_count
+          FROM organizations
+          WHERE status = 1
+          GROUP BY company_id
+        ) c ON cm.company_id = c.company_id
+
+        LEFT JOIN (
+          SELECT o.company_id, COUNT(*) AS agreement_count
+          FROM organization_agreements oa
+          JOIN organizations o ON oa.org_id = o.org_id
+          WHERE oa.status = 1
+            AND CURDATE() BETWEEN oa.start_date AND oa.valid_upto
+          GROUP BY o.company_id
+        ) a ON cm.company_id = a.company_id
+
+        LEFT JOIN (
+          SELECT
+            company_id,
+            COUNT(*) AS godown_count,
+            SUM(total_capacity) AS total_capacity,
+            SUM(monthly_rent) AS total_godown_rent
           FROM godowns
           WHERE is_active = 1
-      `, []) as any[];
+          GROUP BY company_id
+        ) g ON cm.company_id = g.company_id
 
-      const overview = allCompaniesSummary[0];
-      overview.total_available_space = totalSpace[0].total_available_space;
+        LEFT JOIN (
+          SELECT
+            g.company_id,
+            SUM(gsa.space_allocated) AS allocated_space,
+            SUM(gsa.monthly_rent) AS storage_revenue
+          FROM godown_space_allocations gsa
+          JOIN godowns g ON gsa.godown_id = g.godown_id
+          WHERE gsa.status = 1
+          GROUP BY g.company_id
+        ) sa ON cm.company_id = sa.company_id
+
+        LEFT JOIN (
+          SELECT
+            o.company_id,
+            SUM(ii.total) AS invoice_revenue
+          FROM invoice_items ii
+          JOIN organizations o ON ii.org_id = o.org_id
+          WHERE ii.status = 1
+            AND o.status = 1
+          GROUP BY o.company_id
+        ) inv ON cm.company_id = inv.company_id
+
+        LEFT JOIN (
+          SELECT
+            e.company_id,
+            SUM(e.salary) AS salary_cost
+          FROM employees e
+          JOIN users u ON e.user_id = u.id
+          WHERE e.status = 1
+            AND u.status = 1
+          GROUP BY e.company_id
+        ) s ON cm.company_id = s.company_id
+
+        WHERE cm.is_active = 1
+        ORDER BY total_revenue DESC
+      `;
+      const companyBreakdown = await executeQuery(sql, []) as any[];
 
 
-      // Company-wise breakdown for comparison
-      const companyBreakdown = await executeQuery(`
-      SELECT 
-        cm.company_id,
-        cm.company_name,
-        cm.abbr,
-        cm.currency_symbol,
-        COUNT(DISTINCT o.org_id) as client_count,
-        COUNT(DISTINCT oa.agreement_id) as agreement_count,
-        COUNT(DISTINCT g.godown_id) as godown_count,
-        COALESCE(SUM(g.total_capacity), 0) as total_capacity,
-        COALESCE(SUM(gsa.space_allocated), 0) as allocated_space,
-        COALESCE(SUM(gsa.monthly_rent), 0) as monthly_revenue,
-        COALESCE(SUM(g.monthly_rent), 0) as godown_rent,
-        (COALESCE(SUM(gsa.monthly_rent), 0) - COALESCE(SUM(g.monthly_rent), 0)) as net_profit,
-        (COALESCE(SUM(gsa.space_allocated), 0) / COALESCE(SUM(g.total_capacity), 1) * 100) as utilization_rate
-        
-      FROM company_master cm
-      LEFT JOIN organizations o ON cm.company_id = o.company_id
-      LEFT JOIN organization_agreements oa ON o.org_id = oa.org_id
-      LEFT JOIN godowns g ON cm.company_id = g.company_id
-      LEFT JOIN godown_space_allocations gsa ON g.godown_id = gsa.godown_id AND gsa.status = 1
-      GROUP BY cm.company_id, cm.company_name, cm.abbr, cm.currency_symbol
-      ORDER BY monthly_revenue DESC
-    `, []) as any[];
-
-      // Top performing clients across all companies
-      const topClients = await executeQuery(`
-      SELECT 
-        o.org_id,
-        o.org_name,
-        cm.company_name,
-        cm.abbr as company_abbr,
-        o.contact_person,
-        COUNT(DISTINCT gsa.allocation_id) as space_allocations,
-        COALESCE(SUM(gsa.monthly_rent), 0) as monthly_rent,
-        COALESCE(SUM(gsa.space_allocated), 0) as total_space_allocated
-        
-      FROM organizations o
-      LEFT JOIN company_master cm ON o.company_id = cm.company_id
-      LEFT JOIN godown_space_allocations gsa ON o.org_id = gsa.org_id AND gsa.status = 1
-      GROUP BY o.org_id, o.org_name, cm.company_name, cm.abbr, o.contact_person
-      HAVING monthly_rent > 0
-      ORDER BY monthly_rent DESC
-      LIMIT 10
-    `, []) as any[];
-
-      // Godown performance across all companies
-      const topGodowns = await executeQuery(`
-      SELECT 
-        g.godown_id,
-        g.godown_name,
-        g.location,
-        cm.company_name,
-        cm.abbr as company_abbr,
-        g.total_capacity,
-        g.capacity_unit,
-        COALESCE(SUM(gsa.space_allocated), 0) as allocated_space,
-        (COALESCE(SUM(gsa.space_allocated), 0) / g.total_capacity * 100) as utilization_percentage,
-        COALESCE(SUM(gsa.monthly_rent), 0) as revenue_generated,
-        g.monthly_rent as godown_rent,
-        (COALESCE(SUM(gsa.monthly_rent), 0) - g.monthly_rent) as net_profit,
-        COUNT(DISTINCT gsa.org_id) as clients_allocated
-        
-      FROM godowns g
-      LEFT JOIN company_master cm ON g.company_id = cm.company_id
-      LEFT JOIN godown_space_allocations gsa ON g.godown_id = gsa.godown_id AND gsa.status = 1
-      GROUP BY g.godown_id, g.godown_name, g.location, cm.company_name, cm.abbr, g.total_capacity, g.capacity_unit, g.monthly_rent
-      ORDER BY net_profit DESC
-      LIMIT 10
-    `, []) as any[];
-
-      // Monthly revenue trend across all companies
-      const monthlyTrend = await executeQuery(`
-      SELECT 
-        DATE_FORMAT(date_range.month, '%Y-%m') as month,
-        DATE_FORMAT(date_range.month, '%b %Y') as month_name,
-        COALESCE(SUM(gsa.monthly_rent), 0) as estimated_revenue,
-        COALESCE(SUM(br.grand_total), 0) as invoiced_amount,
-        COALESCE(SUM(CASE WHEN br.status = 'paid' THEN br.grand_total ELSE 0 END), 0) as collected_amount,
-        COUNT(DISTINCT br.bill_id) as invoices_generated
-        
-      FROM (
-        SELECT DATE_FORMAT(CURDATE() - INTERVAL (a.a + (10 * b.a)) MONTH, '%Y-%m-01') as month
-        FROM (SELECT 0 AS a UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) AS a
-        CROSS JOIN (SELECT 0 AS a UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) AS b
-      ) date_range
-      LEFT JOIN godown_space_allocations gsa ON DATE_FORMAT(gsa.created_on, '%Y-%m') <= DATE_FORMAT(date_range.month, '%Y-%m') AND gsa.status = 1
-      LEFT JOIN billing_records br ON DATE_FORMAT(br.billing_period_start, '%Y-%m') = DATE_FORMAT(date_range.month, '%Y-%m')
-        AND br.org_id IN (SELECT company_id FROM company_master)
-      WHERE date_range.month >= DATE_FORMAT(CURDATE() - INTERVAL 11 MONTH, '%Y-%m-01')
-        AND date_range.month <= DATE_FORMAT(CURDATE(), '%Y-%m-01')
-      GROUP BY date_range.month
-      ORDER BY date_range.month DESC
-    `, []) as any[];
-
-      const summary = {
-        overview: overview || {},
-        companyBreakdown,
-        topClients,
-        topGodowns,
-        monthlyTrend,
-        totalCompanies: companies.length,
-        summaryDate: new Date().toISOString()
+      const resp = {
+        totalMonthlyRevenue,
+        totalInvoiceAmount,
+        totalMonthlySalary,
+        netMonthlyProfit,
+        totalClients,
+        totalGodownRent,
+        totalGodownSpace,
+        totalSpaceAllocated,
+        totalRentCollected,
+        totalSpaceUtilizaton,
+        companyBreakdown
       };
-
-      return this.success(summary);
+      return this.success(resp)
     } catch (error) {
       return this.handleError(error);
     }

@@ -5,7 +5,7 @@ import { ExpiringItems } from './blocks/expiring-items';
 import { QuickActions } from './blocks/quick-actions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle, Calendar, Building2 } from 'lucide-react';
-import { getAllCompaniesSummary, getCompanyFinancialSummary, getExpiringItems } from '@/lib/actions/dashboard';
+import { getDashboardData, getCompanyFinancialSummary, getExpiringItems } from '@/lib/actions/dashboard';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CompanySelector } from './blocks/company-selector';
 import { GodownPerformance } from './blocks/godown-performance';
@@ -29,7 +29,7 @@ export default function DashboardPage() {
         const [companyData, expiringData, allCompanyData] = await Promise.all([
           getCompanyFinancialSummary(selectedCompany),
           getExpiringItems(),
-          getAllCompaniesSummary()
+          getDashboardData()
         ]);
 
         if (companyData.success) {

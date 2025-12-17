@@ -4,18 +4,37 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Building2, Users, Warehouse, IndianRupee, TrendingUp, TrendingDown, Target } from 'lucide-react';
+import { MoneyHelper } from '@/lib/helpers/money-helper';
+import { NumberHelper } from '@/lib/helpers/number-helper';
 
 interface AllCompaniesOverviewProps {
   data: any;
 }
 
 export function AllCompaniesOverview({ data }: AllCompaniesOverviewProps) {
-  const { overview, companyBreakdown } = data;
+  const { 
+    totalMonthlyRevenue, 
+    totalInvoiceAmount, 
+    totalMonthlySalary, 
+    netMonthlyProfit, 
+    totalClients, 
+    totalGodownRent, 
+    totalGodownSpace, 
+    totalSpaceAllocated, 
+    totalRentCollected, 
+    totalSpaceUtilizaton,
+    companyBreakdown 
+  } = data;
+
+  // Calculate derived values
+  const totalAvailableSpace = totalGodownSpace - totalSpaceAllocated;
+  const overallUtilizationRate = totalSpaceUtilizaton;
+  const activeClients = totalClients; // Assuming all clients are active
 
   const mainStats = [
     {
       title: 'Total Monthly Revenue',
-      value: overview.total_monthly_revenue,
+      value: totalMonthlyRevenue,
       prefix: '₹',
       description: 'Across all companies',
       icon: IndianRupee,
@@ -25,18 +44,18 @@ export function AllCompaniesOverview({ data }: AllCompaniesOverviewProps) {
     },
     {
       title: 'Net Profit',
-      value: overview.total_net_profit,
+      value: netMonthlyProfit,
       prefix: '₹',
-      description: 'After godown rent',
+      description: `After ${MoneyHelper.formatRupees(totalGodownRent)} rent`,
       icon: TrendingUp,
-      trend: overview.total_net_profit > 0 ? 'up' : 'down',
-      color: overview.total_net_profit > 0 ? 'text-green-600' : 'text-red-600',
-      bgColor: overview.total_net_profit > 0 ? 'bg-green-50' : 'bg-red-50'
+      trend: netMonthlyProfit > 0 ? 'up' : 'down',
+      color: netMonthlyProfit > 0 ? 'text-green-600' : 'text-red-600',
+      bgColor: netMonthlyProfit > 0 ? 'bg-green-50' : 'bg-red-50'
     },
     {
       title: 'Total Clients',
-      value: overview.total_clients,
-      description: `${overview.active_clients} active`,
+      value: totalClients,
+      description: `${activeClients} active`,
       icon: Users,
       trend: 'neutral',
       color: 'text-blue-600',
@@ -44,11 +63,11 @@ export function AllCompaniesOverview({ data }: AllCompaniesOverviewProps) {
     },
     {
       title: 'Space Utilization',
-      value: Math.round(overview.overall_utilization_rate || 0),
+      value: Math.round(overallUtilizationRate || 0),
       suffix: '%',
-      description: `${overview.total_allocated_space} of ${overview.total_capacity} used`,
+      description: `${NumberHelper.format(totalSpaceAllocated)} of ${NumberHelper.format(totalGodownSpace)} sqft used`,
       icon: Warehouse,
-      trend: overview.overall_utilization_rate > 80 ? 'up' : overview.overall_utilization_rate > 50 ? 'neutral' : 'down',
+      trend: overallUtilizationRate > 80 ? 'up' : overallUtilizationRate > 50 ? 'neutral' : 'down',
       color: 'text-orange-600',
       bgColor: 'bg-orange-50'
     }
@@ -81,12 +100,13 @@ export function AllCompaniesOverview({ data }: AllCompaniesOverviewProps) {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {stat.prefix}{stat.value?.toLocaleString()}{stat.suffix}
+                {stat.prefix}{NumberHelper.formatFixed(stat.value)}{stat.suffix}
               </div>
               <div className="flex items-center justify-between">
                 <p className="text-xs text-muted-foreground">{stat.description}</p>
                 {stat.trend === 'up' && <TrendingUp className="h-4 w-4 text-green-600" />}
                 {stat.trend === 'down' && <TrendingDown className="h-4 w-4 text-red-600" />}
+                {stat.trend === 'neutral' && <span className="h-4 w-4" />}
               </div>
             </CardContent>
           </Card>
@@ -127,24 +147,27 @@ export function AllCompaniesOverview({ data }: AllCompaniesOverviewProps) {
                         <Warehouse className="h-3 w-3" />
                         <span>{company.godown_count} godowns</span>
                       </div>
+                      <div className="flex items-center space-x-1">
+                        <Target className="h-3 w-3" />
+                        <span>{company.agreement_count} agreements</span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 <div className="text-right space-y-2">
                   <div className="flex items-center lg:justify-end space-x-2">
-                    <IndianRupee className="h-4 w-4 text-green-600" />
-                    <p className="font-bold text-lg">{company.monthly_revenue.toLocaleString()}</p>
+                    <p className="font-bold text-lg">{MoneyHelper.formatRupees(company.total_revenue)}</p>
                   </div>
                   <div className="flex items-center space-x-3 text-sm">
-                    <div className={`px-2 py-1 rounded-full ${getProfitColor(company.net_profit)}`}>
+                    <div className={`px-2 py-1 rounded-full ${getProfitColor(parseFloat(company.net_profit))}`}>
                       <span className="font-medium">
-                        {company.net_profit >= 0 ? '₹' : '-₹'}{Math.abs(company.net_profit).toLocaleString()}
+                        {MoneyHelper.formatRupees(company.net_profit)} net profit
                       </span>
                     </div>
                     <div className="flex items-center space-x-1">
-                      <Target className="h-3 w-3 text-muted-foreground" />
-                      <span>{Math.round(company.utilization_rate)}%</span>
+                      <Warehouse className="h-3 w-3 text-muted-foreground" />
+                      <span>{Math.round(parseFloat(company.utilization_rate))}% utilized</span>
                     </div>
                   </div>
                 </div>
@@ -169,30 +192,32 @@ export function AllCompaniesOverview({ data }: AllCompaniesOverviewProps) {
             <Warehouse className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{overview.total_available_space?.toLocaleString()} sqft</div>
+            <div className="text-2xl font-bold">{NumberHelper.format(totalAvailableSpace)} sqft</div>
             <p className="text-xs text-muted-foreground">For subletting across all companies</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Invoices</CardTitle>
+            <CardTitle className="text-sm font-medium">Monthly Invoices</CardTitle>
             <IndianRupee className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">₹{overview.total_pending?.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-green-600">
+              {MoneyHelper.formatRupees(totalInvoiceAmount)}
+            </div>
             <p className="text-xs text-muted-foreground">Awaiting payment</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Agreements</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Salary Expenses</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{overview.active_agreements}</div>
-            <p className="text-xs text-muted-foreground">{overview.expiring_agreements} expiring soon</p>
+            <div className="text-2xl font-bold text-orange-600">{MoneyHelper.formatRupees(totalMonthlySalary)}</div>
+            <p className="text-xs text-muted-foreground">Monthly salary cost</p>
           </CardContent>
         </Card>
       </div>

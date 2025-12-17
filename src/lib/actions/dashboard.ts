@@ -21,8 +21,8 @@ export async function getCompanyFinancialSummary(companyId: number) {
   return await repo.getCompanyFinancialSummary(companyId);
 }
 
-export async function getAllCompaniesSummary() {
+export async function getDashboardData() {
   const session = await getSession();
   const repo = new MiscRepository(session.user_id);
-  return await repo.getAllCompaniesSummary();
+  return await repo.getDashboardData();
 }
