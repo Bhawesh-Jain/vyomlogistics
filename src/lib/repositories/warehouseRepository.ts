@@ -78,7 +78,6 @@ export class WarehouseRepository extends RepositoryBase {
 
       const params = companyId ? [companyId] : [];
       const godowns = await executeQuery(sql, params);
-      console.log(godowns);
 
       return this.success(godowns);
     } catch (error) {

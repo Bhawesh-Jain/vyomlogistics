@@ -81,7 +81,6 @@ export class DataRepository extends RepositoryBase {
         `;
       }
 
-
       const flatFolders = await executeQuery(sql) as Folder[];
 
       if (flatFolders.length === 0) {
@@ -104,6 +103,8 @@ export class DataRepository extends RepositoryBase {
           const parent = folderMap.get(folder.parent_id);
           if (parent) {
             parent.sub_folders!.push(folder);
+          } else {
+            rootFolders.push(folder);
           }
         } else {
           rootFolders.push(folder);
