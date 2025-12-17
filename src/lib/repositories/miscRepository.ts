@@ -480,7 +480,6 @@ export class MiscRepository extends RepositoryBase {
         totalSpaceUtilizaton,
         companyBreakdown
       };
-      console.log(resp);
       
       return this.success(resp)
     } catch (error) {
