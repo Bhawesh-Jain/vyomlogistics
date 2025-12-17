@@ -3,6 +3,7 @@ import { getSession } from "../session";
 import { UserAuthRepository } from "../repositories/userAuthRepository";
 import { cookies } from "next/headers";
 import { customLog } from "../utils";
+import { SidebarRepository } from "../repositories/sidebarRepository";
 
 export type UserData = {
   user_id: string;
@@ -36,9 +37,11 @@ export async function handleLoginForm(formData: FormData) {
 
       await login(result.user);
 
+      const userMenu = await new SidebarRepository(result.user.user_id, result.user.company_id).getSidebarData();
       return {
         success: true,
-        message: "Login Succesfull!"
+        message: "Login Succesfull!",
+        menu: userMenu.result.menu
       }
     } else {
       return {

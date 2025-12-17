@@ -45,3 +45,17 @@ export function collectCheckedPermissions(permissionsList: any[], collected: num
   }
   return collected;
 }
+
+export function findFirstAccessibleUrl(menu: PermissionItem[]): string | null {
+  for (const item of menu) {
+    if (item.items && item.items.length > 0) {
+      const childUrl = findFirstAccessibleUrl(item.items);
+      if (childUrl) return childUrl;
+    }
+
+    if (item.url) {
+      return item.url;
+    }
+  }
+  return null;
+}
