@@ -1,11 +1,11 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Onest } from 'next/font/google'
 import './globals.css'
 import { Toaster } from '@/components/ui/toaster'
 import { DialogProvider } from "@/providers/DialogProvider"
 import { ScrollArea } from '@/components/ui/scroll-area'
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Onest({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'Vyom Logistics',
