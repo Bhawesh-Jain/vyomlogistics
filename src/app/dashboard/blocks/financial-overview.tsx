@@ -15,9 +15,9 @@ export function FinancialOverview({ data }: FinancialOverviewProps) {
   const stats = [
     {
       title: 'Monthly Revenue',
-      value: financial.monthly_revenue,
+      value: parseFloat(financial.total_revenue) || 0,
       prefix: '₹',
-      description: 'From space allocations',
+      description: `₹${(parseFloat(financial.storage_revenue) || 0).toLocaleString()} storage + ₹${(parseFloat(financial.invoice_revenue) || 0).toLocaleString()} invoices`,
       icon: IndianRupee,
       trend: 'up',
       color: 'text-green-600',
@@ -25,8 +25,8 @@ export function FinancialOverview({ data }: FinancialOverviewProps) {
     },
     {
       title: 'Total Clients',
-      value: financial.total_clients,
-      description: `${financial.active_agreements} active agreements`,
+      value: financial.total_clients || 0,
+      description: `${financial.active_agreements || 0} active agreements of ${financial.total_agreements || 0}`,
       icon: Users,
       trend: 'neutral',
       color: 'text-blue-600',
@@ -34,17 +34,17 @@ export function FinancialOverview({ data }: FinancialOverviewProps) {
     },
     {
       title: 'Space Utilization',
-      value: Math.round(financial.utilization_rate || 0),
+      value: Math.round(parseFloat(financial.utilization_rate) || 0),
       suffix: '%',
-      description: `${financial.allocated_space} of ${financial.total_capacity} allocated`,
+      description: `${(parseFloat(financial.allocated_space) || 0).toLocaleString()} of ${(parseFloat(financial.total_capacity) || 0).toLocaleString()} sqft allocated`,
       icon: Warehouse,
-      trend: financial.utilization_rate > 80 ? 'up' : financial.utilization_rate > 50 ? 'neutral' : 'down',
+      trend: (parseFloat(financial.utilization_rate) || 0) > 80 ? 'up' : (parseFloat(financial.utilization_rate) || 0) > 50 ? 'neutral' : 'down',
       color: 'text-orange-600',
       bgColor: 'bg-orange-50'
     },
     {
       title: 'Available Space',
-      value: financial.available_space,
+      value: (parseFloat(financial.available_space) || 0).toLocaleString(),
       suffix: ' sqft',
       description: 'Available for subletting',
       icon: TrendingUp,
@@ -72,6 +72,7 @@ export function FinancialOverview({ data }: FinancialOverviewProps) {
               <p className="text-xs text-muted-foreground">{stat.description}</p>
               {stat.trend === 'up' && <TrendingUp className="h-4 w-4 text-green-600" />}
               {stat.trend === 'down' && <TrendingDown className="h-4 w-4 text-red-600" />}
+              {stat.trend === 'neutral' && <span className="h-4 w-4" />}
             </div>
           </CardContent>
         </Card>

@@ -12,6 +12,7 @@ import { GodownPerformance } from './blocks/godown-performance';
 import { ClientRevenue } from './blocks/client-revenue';
 import { FinancialOverview } from './blocks/financial-overview';
 import { AllCompaniesOverview } from './blocks/all-companies-overview';
+import { MoneyHelper } from '@/lib/helpers/money-helper';
 
 export default function DashboardPage() {
   const [selectedCompany, setSelectedCompany] = useState<number | null>(null);
@@ -127,19 +128,20 @@ export default function DashboardPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span>Total Organizations:</span>
-                      <span className="font-medium">{companyData.organizations.length}</span>
+                      <span className="font-medium">{companyData.financial.total_clients}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Active Agreements:</span>
                       <span className="font-medium">{companyData.financial.active_agreements}</span>
+                      <span className="font-xs">Total: {companyData.financial.total_agreements}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Space Utilization:</span>
                       <span className="font-medium">{Math.round(companyData.financial.utilization_rate || 0)}%</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Pending Invoices:</span>
-                      <span className="font-medium text-red-600">₹{companyData.financial.total_pending.toLocaleString()}</span>
+                      <span>Monthly Revenue:</span>
+                      <span className="font-medium text-red-600">{MoneyHelper.formatRupees(companyData.financial.total_revenue)}</span>
                     </div>
                   </div>
                 </CardContent>
