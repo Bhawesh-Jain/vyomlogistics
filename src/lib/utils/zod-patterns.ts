@@ -88,6 +88,9 @@ export const zodPatterns = {
   numberString: {
     schema: () => z.coerce.number()
   },
+  numberStringOptional: {
+    schema: () => z.coerce.number().optional()
+  },
   date: {
     schema: () => z.coerce.date()
   },

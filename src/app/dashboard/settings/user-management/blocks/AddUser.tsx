@@ -97,7 +97,7 @@ export default function AddUser({
       if (result.success) {
         toast({
           title: "Success",
-          description: result.result,
+          description: result.result.message,
         });
         setAddUser(false);
         setReload(true);

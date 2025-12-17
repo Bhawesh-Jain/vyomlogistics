@@ -244,7 +244,7 @@ export class UserRepository extends RepositoryBase {
             AND company_id = ?
         `, [data.role, this.companyId, data.role, this.companyId]);
 
-        return this.success('User created successfully');
+        return this.success({ message: 'User created successfully', userId: result });
       }
       return this.failure('User not created');
     } catch (error) {
