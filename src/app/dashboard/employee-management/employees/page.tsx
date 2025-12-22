@@ -112,7 +112,7 @@ export default function EmployeeMaster() {
     },
     {
       id: "advance",
-      header: "Adavance",
+      header: "Advance",
       accessorKey: "advance",
       sortable: true,
       visible: true,
