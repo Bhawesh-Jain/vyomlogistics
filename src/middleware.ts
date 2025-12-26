@@ -11,9 +11,7 @@ export default async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const response = NextResponse.next();
 
-  /* -----------------------------
-   * Device & IP fingerprinting
-   * ----------------------------- */
+ 
   const device = JSON.stringify(userAgent(request));
   const ip =
     request.ip ||
@@ -30,9 +28,7 @@ export default async function middleware(request: NextRequest) {
     sameSite: "lax",
   });
 
-  /* -----------------------------
-   * Basic session existence check
-   * ----------------------------- */
+  
   const session = await getSession();
 
   if (!session.isLoggedIn || !session.user_id || !session.company_id) {
