@@ -77,7 +77,7 @@ export default function DataBankModern() {
   const { showError, showSuccess, showConfirmation, setLoading: setDialogLoading } = useGlobalDialog();
   const { user } = useUser();
 
-  const canEditPermissions = user.role == '1' || user.role == '2';
+  const canEditPermissions = user.role == '1' || user.role == '4';
   
   const loadFolders = useCallback(async () => {
     try {
