@@ -62,11 +62,3 @@ export async function POST(request: NextRequest) {
     return apiError({ origin, error });
   }
 }
-
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '50mb',
-    },
-  },
-}
