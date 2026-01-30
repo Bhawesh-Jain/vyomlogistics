@@ -12,6 +12,7 @@ import { Box, Edit2, Trash } from "lucide-react";
 import AddOrganization from "./blocks/AddOrganization";
 import formatDate from "@/lib/utils/date";
 import ManageCompanyItem from "./blocks/ManageItem";
+import { Badge } from "@/components/ui/badge";
 
 export default function OrganizationMaster() {
   const [items, setItems] = useState<Organization[]>([])
@@ -70,6 +71,18 @@ export default function OrganizationMaster() {
       accessorKey: "org_name",
       sortable: true,
       visible: true,
+    },
+    {
+      id: "status",
+      header: "Status",
+      accessorKey: "status",
+      sortable: true,
+      visible: true,
+      cell: (row) => (
+        <Badge variant={row.status === 1 ? "success" : "destructive"}>
+          {row.status == 1 ? 'Active' : 'Inactive'}
+        </Badge>
+      )
     },
     {
       id: "contact_person",
