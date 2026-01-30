@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import formatDate from '@/lib/utils/date';
+import { Container } from '@/components/ui/container';
 
 interface ExpiringItemsProps {
   items: ExpiringItem[];
@@ -121,7 +122,7 @@ export function ExpiringItems({ items, onRefresh, refreshing = false }: Expiring
   }
 
   return (
-    <Card className="w-full overflow-hidden">
+    <Container className="w-full overflow-hidden">
       <CardHeader className="px-4 sm:px-6 pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -148,7 +149,7 @@ export function ExpiringItems({ items, onRefresh, refreshing = false }: Expiring
             )}
           </div>
         </div>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center justify-between">
           <CardDescription>
             {items.length} item{items.length !== 1 ? 's' : ''} expiring in the next 60 days
           </CardDescription>
@@ -196,7 +197,7 @@ export function ExpiringItems({ items, onRefresh, refreshing = false }: Expiring
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-start gap-3 flex-1 min-w-0">
-                        <div className={`h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        <div className={`h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center md:flex-shrink-0 ${
                           isCritical ? 'bg-destructive/10' : 'bg-blue-50'
                         }`}>
                           {getTypeIcon(item.type)}
@@ -207,8 +208,8 @@ export function ExpiringItems({ items, onRefresh, refreshing = false }: Expiring
                               <p className="font-medium text-sm sm:text-base truncate">
                                 {item.name}
                               </p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Badge variant="outline" className="text-xs capitalize">
+                              <div className="flex flex-col md:flex-row md:items-center gap-2 mt-1">
+                                <Badge variant="outline" className="text-xs capitalize w-fit">
                                   {item.type}
                                 </Badge>
                                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -325,6 +326,6 @@ export function ExpiringItems({ items, onRefresh, refreshing = false }: Expiring
           </>
         )}
       </CardContent>
-    </Card>
+    </Container>
   );
 }
