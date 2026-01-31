@@ -46,7 +46,7 @@ export class UserRepository extends RepositoryBase {
   async getEmployeeList() {
     try {
       var user = await new QueryBuilder('users')
-        .where(`role not in (1,4)`)
+        .where(`role not in (1)`)
         .select(['*']);
 
       if (user && user.length > 0) {
