@@ -62,12 +62,12 @@ export class UserAuthRepository extends RepositoryBase {
         AND attempted_at > DATE_SUB(NOW(), INTERVAL 15 MINUTE)
       `, [ipAddress]);
 
-      if (recentAttempts[0].count >= 5) {
-        return {
-          success: false,
-          error: "Too many failed attempts. Please try again later."
-        };
-      }
+      // if (recentAttempts[0].count >= 5) {
+      //   return {
+      //     success: false,
+      //     error: "Too many failed attempts. Please try again later."
+      //   };
+      // }
 
 
       const users = await executeQuery<any[]>(`
